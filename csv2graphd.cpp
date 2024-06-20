@@ -166,7 +166,7 @@ void getDivide(std::set<std::string> &twoHopResults, std::string filename, std::
 
     // 如果文件夹不存在，则创建它
     if (!createDirectory(directory1)) {
-        // std::cerr << "Failed or no need to create directory." << std::endl;
+        std::cerr << "Failed or no need to create directory." << std::endl;
     }
     std::cout<<"inputdir:"<<directory<<std::endl;
     std::cout<<"outputdir:"<<directory1<<std::endl;
@@ -1243,36 +1243,28 @@ std::set<std::set<std::string>> merge_high_similarity_sets(std::set<std::set<std
     if (!single_value_set.empty()) {
         remaining_sets.insert(single_value_set);
     }
-    // std::cout<<"single_value_set:"<<single_value_set.size()<<std::endl;
-    // std::cout<<"remaining_sets:"<<remaining_sets.size()<<std::endl;
 
     // Step 2: 按相似度合并集合
     std::set<std::set<std::string>> twoHopSets = remaining_sets;
-    std::set<std::set<std::string>> mergedSets;
     bool merged = true;
 
     while (merged) {
         merged = false;
         std::set<std::set<std::string>> new_twoHopSets;
-        std::set<std::set<std::string>>::iterator it1 = twoHopSets.begin();
+        auto it1 = twoHopSets.begin();
 
         while (it1 != twoHopSets.end()) {
             bool is_merged = false;
-            std::set<std::set<std::string>>::iterator it2 = std::next(it1);
+            auto it2 = std::next(it1);
 
             while (it2 != twoHopSets.end()) {
-                // std::cout<<"similarity："<<jaccard_similarity(*it1, *it2)<<std::endl;
                 if (jaccard_similarity(*it1, *it2) >= threshold) {
-                    new_twoHopSets.insert(merge_sets(*it1, *it2));
+                    std::set<std::string> mset = merge_sets(*it1, *it2);
+                    new_twoHopSets.insert(mset);
 
-                    // 当我们删除it1指向的元素后，it2可能会变得无效，因为它可能指向了被删除的元素。
-                    // it1 = twoHopSets.erase(it1);
-                    // it2 = twoHopSets.erase(it2); 
-
-                    it2 = twoHopSets.erase(it2); // 先删除it2指向的元素
-                    it1 = twoHopSets.erase(it1); // 然后删除it1指向的元素
-                    it2 = std::next(it1); // 更新it2
-
+                    // 合并后删除原集合
+                    it2 = twoHopSets.erase(it2);
+                    it1 = twoHopSets.erase(it1);
                     merged = true;
                     is_merged = true;
                     break;
@@ -1286,12 +1278,10 @@ std::set<std::set<std::string>> merge_high_similarity_sets(std::set<std::set<std
                 ++it1;
             }
         }
-        // 暂时先不覆盖
-        // twoHopSets = new_twoHopSets;
-        mergedSets = new_twoHopSets;
+        twoHopSets = new_twoHopSets;
     }
 
-    return mergedSets;
+    return twoHopSets;
 }
 
 int main() {
@@ -1449,7 +1439,7 @@ int main() {
     //     for (const auto& person : center) {
     //         cNeighbor.erase(person);
     //     }
-    //     while(threshhold<1700&&cNeighbor.size()!=0) {
+    //     while(threshhold<10000&&cNeighbor.size()!=0) {
     //         // std::cout<<"cNeighborsize1:"<<cNeighbor.size()<<std::endl;
     //         std::string smallestOneHop = getSmallestOneHop(cNeighbor,neighbor_counts);
     //         // std::cout<<"smallest onehop:"<<smallestOneHop<<std::endl;
@@ -1491,12 +1481,12 @@ int main() {
 
     // 划分方法3：3.1贪心算法合并person，3.2合并相似度高的两跳person集
     std::set<std::set<std::string>> twoHopSets;
-    int part = 0;
     std::set<std::string> peopleSet;
     for(auto it=people.begin();it!=people.end();it++){
         peopleSet.insert(it->first);
     }
-
+    int testCenter=0;
+    int testtwohop=0;
     while(peopleSet.size()!=0) {
         // std::string seed = getSmallestOneHop(peopleSet,neighbor_counts);
         std::string seed = getBiggestOneHop(peopleSet,neighbor_counts);
@@ -1515,6 +1505,9 @@ int main() {
         while(threshhold<1700&&cNeighbor.size()!=0) {
             // std::cout<<"cNeighborsize1:"<<cNeighbor.size()<<std::endl;
             std::string smallestOneHop = getSmallestOneHop(cNeighbor,neighbor_counts);
+            if (smallestOneHop == "") {
+                break;
+            }
             // std::cout<<"smallest onehop:"<<smallestOneHop<<std::endl;
             center.insert(smallestOneHop);
             twoHopResults.insert(smallestOneHop);
@@ -1530,47 +1523,68 @@ int main() {
             }
             
         }
-
-        // 先不调用生成分片
-        // std::cout<<"twohop persons num:"<<twoHopResults.size()<<std::endl;
-        // std::string outPath = "./output/";
-        // for(auto it=center.begin();it!=center.end();it++){
-        //     outPath += *it;
-        //     outPath += "_";
-        // }
-        // std::set<std::string> comment;
-        // std::set<std::string> post;
-        // getDivide(twoHopResults, "./input/ldbc/test01/dynamic/", outPath, comment, post, knows);
-        // std::cout<<"part persons num:"<<twoHopResults.size()<<std::endl<<std::endl;
         
         // 插入到twoHopSets中待合并
         twoHopSets.insert(twoHopResults);
         
-        part++;
 
         for (const auto& person : center) {
             peopleSet.erase(person);
         }
+
+        testCenter+=center.size();
+        testtwohop+=twoHopResults.size();
     }
+    std::cout<<"all center person num:"<<testCenter<<std::endl;
+    std::cout<<"all twohop person num:"<<testtwohop<<std::endl;
+
+    // std::set<std::string> testth;
+    // for(auto i: twoHopSets) {
+    //     for(auto j: i) {
+    //         testth.insert(j);
+    //     }
+    // }
+    // std::cout<<"testth"<<testth.size()<<std::endl;
     
     // 合并相似度高的两跳person集
-    double merge_threshold = 0.5;  // 相似度阈值
+    double merge_threshold = 0.7;  // 相似度阈值
     std::set<std::set<std::string>> mergedSets = merge_high_similarity_sets(twoHopSets, merge_threshold);
     std::cout << "Number of merged sets: " << mergedSets.size() << std::endl;
     std::cout << "Number of twoHopSets: " << twoHopSets.size() << std::endl;
+    // std::set<std::string> tset;
+    // std::set<std::string> mset;
+    // for(auto i: twoHopSets) {
+    //     for(auto j: i) {
+    //         tset.insert(j);
+    //     }
+    // }
+    // for(auto i: twoHopSets) {
+    //     for(auto j: i) {
+    //         mset.insert(j);
+    //     }
+    // }
+    // // 合并后的总人数怎么还变少了呢？已修复,合并删除存在问题
+    // std::cout<<"twoHopSets num:"<<tset.size()<<std::endl;
+    // std::cout<<"mergedSets num:"<<mset.size()<<std::endl;
 
+    int part = 0;
     // 通过合并后的种子集合生成分片
+    std::ofstream tmpfile("./output/partTwoHopPersons.txt");
     for(auto i: mergedSets) {
-        std::cout<<"twohop persons num:"<<i.size()<<std::endl;
         std::string outPath = "./output/";
+        outPath+=std::to_string(part);
+        std::cout<<"part"<<part<<std::endl;
+        std::cout<<"twohop persons num:"<<i.size()<<std::endl;
         for(auto it=i.begin();it!=i.end();it++){
-            outPath += *it;
-            outPath += "_";
+            // outPath += *it;
+            // outPath += "_";
+            tmpfile<<part<<' '<<*it<<std::endl;
         }
         std::set<std::string> comment;
         std::set<std::string> post;
         getDivide(i, "./input/ldbc/test01/dynamic/", outPath, comment, post, knows);
         std::cout<<"part persons num:"<<i.size()<<std::endl<<std::endl;
+        part++;
     }
 
     // 获取结束时间点
