@@ -1423,6 +1423,8 @@ int main() {
     // for(auto it=people.begin();it!=people.end();it++){
     //     peopleSet.insert(it->first);
     // }
+    // std::ofstream tmpfile("./output/partTwoHopPersons.txt");
+    
 
     // while(peopleSet.size()!=0) {
     //     // std::string seed = getSmallestOneHop(peopleSet,neighbor_counts);
@@ -1459,11 +1461,15 @@ int main() {
     //     }
     //     std::cout<<"twohop persons num:"<<twoHopResults.size()<<std::endl;
     //     std::string outPath = "./output/";
-    //     for(auto it=center.begin();it!=center.end();it++){
-    //         outPath += *it;
-    //         outPath += "_";
-    //     }
+    //     // for(auto it=center.begin();it!=center.end();it++){
+    //     //     outPath += *it;
+    //     //     outPath += "_";
+    //     // }
     //     // std::cout<<outPath<<std::endl;
+    //     outPath+=std::to_string(part);
+    //     for(auto it=center.begin();it!=center.end();it++){
+    //         tmpfile<<part<<' '<<*it<<std::endl;
+    //     }
 
     //     std::set<std::string> comment;
     //     std::set<std::string> post;
