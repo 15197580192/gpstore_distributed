@@ -10,8 +10,11 @@
 #include <chrono>
 #include <algorithm>
 #include <iterator>
+#include <thread>
 
 #include <sys/stat.h>
+
+std::vector<std::thread> threads; // 用于存储线程的向量
 
 
 class Person {
@@ -184,8 +187,8 @@ void getDivide(std::set<std::string> &twoHopResults, std::string filename, std::
     std::unordered_map<std::string, std::unordered_set<std::string>> reply1;
     std::unordered_map<std::string, std::unordered_set<std::string>> reply2;
 
-    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> creator1;
-    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> creator2;
+    // std::unordered_map<std::string, std::unordered_map<std::string, std::string>> creator1;
+    // std::unordered_map<std::string, std::unordered_map<std::string, std::string>> creator2;
     
     
     std::set<std::string> forum;
@@ -364,8 +367,9 @@ void getDivide(std::set<std::string> &twoHopResults, std::string filename, std::
 
     // comment hasCreator person
     file.open(directory+"/comment_hasCreator_person_0_0.csv");
-    file2.open(directory1+"/comment_hasCreator_person_0_0.csv");
-    file2<<"Comment.id|Person.id"<<std::endl;
+    // 这里不用输出，后面统一输出
+    // file2.open(directory1+"/comment_hasCreator_person_0_0.csv");
+    // file2<<"Comment.id|Person.id"<<std::endl;    //为什么没有输出到呢，open会覆盖
 
     // std::getline(file, line); // Skip header line
     while (std::getline(file, line)) {
@@ -384,16 +388,16 @@ void getDivide(std::set<std::string> &twoHopResults, std::string filename, std::
         
         if(twoHopResults.find(items[1])!=twoHopResults.end()){
             comment.insert(items[0]);
-            file2<<line<<std::endl;
+            // file2<<line<<std::endl;
         }
     }
     file.close();
-    file2.close();
+    // file2.close();
 
     // post hasCreator person
     file.open(directory+"/post_hasCreator_person_0_0.csv");
     file2.open(directory1+"/post_hasCreator_person_0_0.csv");
-    file2<<"Post.id|Person.id"<<std::endl;
+    // file2<<"Post.id|Person.id"<<std::endl;
 
     // std::getline(file, line); // Skip header line
     while (std::getline(file, line)) {
@@ -495,13 +499,16 @@ void getDivide(std::set<std::string> &twoHopResults, std::string filename, std::
         std::vector<std::string> tmp;
         dfs(*i, reply1, tmp, commentPath);
 	}
+    // std::set<std::string> comment1=comment;
+    // std::set<std::string> post1=post;
+
     for(auto i=commentPath.begin();i!=commentPath.end();i++) {
         std::string from = i->first;
     	std::vector<std::string> tmp = i->second;
         if(tmp.size()==1) {
             // comment没有comment邻居
             // ！！！这里也要存post
-            comment.insert(tmp[0]);
+            comment.insert(tmp[0]); // 里面本来就存了
             // file3_1<<tmp[0]<<'|'<<tmp[1]<<std::endl;
             for(std::string j : reply2[tmp[0]]) {
                 post.insert(j);
@@ -544,18 +551,13 @@ void getDivide(std::set<std::string> &twoHopResults, std::string filename, std::
                     file3_2<<tmp[1]<<'|'<<j<<std::endl;
                 }
                 // 压缩了路径，不过好像导致comment2post变多了？
-                // if(visited1[tmp[2]].find(j)==visited1[tmp[2]].end()) {
-                //     visited1[tmp[2]][j] = 1;
-                //     file3_2<<tmp[2]<<'|'<<j<<std::endl;
-                // }
-                // file3_2<<tmp[1]<<'|'<<j<<std::endl;
             }
         }
     }
 	
 	// comment_hasCreator_person
     file.open(directory+"/comment_hasCreator_person_0_0.csv");
-    file2.open(directory1+"/comment_hasCreator_person_0_0.csv");
+    file2.open(directory1+"/comment_hasCreator_person_0_0.csv");// 这里加了所有comment到person的边，所以之前不用输出边，这里覆盖是对的
     // file2<<"Comment.id|Person.id"<<std::endl;
     std::set <std::string> newPerson;
     
@@ -589,7 +591,7 @@ void getDivide(std::set<std::string> &twoHopResults, std::string filename, std::
     
 	// post_hasCreator_person
     file.open(directory+"/post_hasCreator_person_0_0.csv");
-    file2.open(directory1+"/post_hasCreator_person_0_0.csv");
+    file2.open(directory1+"/post_hasCreator_person_0_0.csv", std::ios::app);
     // std::set <std::string> newPerson;
     
     // std::getline(file, line); // Skip header line
@@ -793,33 +795,33 @@ void getDivide(std::set<std::string> &twoHopResults, std::string filename, std::
     file2.close();
 
     
-	// forum_hasTag_tag
-    file.open(directory+"/forum_hasTag_tag_0_0.csv");
-    file2.open(directory1+"/forum_hasTag_tag_0_0.csv");
+	// // forum_hasTag_tag
+    // file.open(directory+"/forum_hasTag_tag_0_0.csv");
+    // file2.open(directory1+"/forum_hasTag_tag_0_0.csv");
     
-    // std::getline(file, line); // Skip header line
-    while (std::getline(file, line)) {
-        std::stringstream ss(line);
-        std::string item;
-        std::vector<std::string> items;
+    // // std::getline(file, line); // Skip header line
+    // while (std::getline(file, line)) {
+    //     std::stringstream ss(line);
+    //     std::string item;
+    //     std::vector<std::string> items;
 
-        while (std::getline(ss, item, '|')) {
-            items.push_back(item);
-        }
+    //     while (std::getline(ss, item, '|')) {
+    //         items.push_back(item);
+    //     }
 
-        if (items.size() != 2) {
-            std::cerr << "Invalid line: " << line << std::endl;
-            continue;
-        }
+    //     if (items.size() != 2) {
+    //         std::cerr << "Invalid line: " << line << std::endl;
+    //         continue;
+    //     }
         
-        if(forum.find(items[0])!=forum.end()){
-            file2<<line<<std::endl;
-            // forum.insert(items[0]); // 这里加不加都无所谓，提前已经完成了person_forum
-            // newForum.insert(items[0]);
-        }
-    }
-    file.close();
-    file2.close(); 
+    //     if(forum.find(items[0])!=forum.end()){
+    //         file2<<line<<std::endl;
+    //         // forum.insert(items[0]); // 这里加不加都无所谓，提前已经完成了person_forum
+    //         // newForum.insert(items[0]);
+    //     }
+    // }
+    // file.close();
+    // file2.close(); 
 
 	// forum
     file.open(directory+"/forum_0_0.csv");
@@ -931,6 +933,833 @@ void getDivide(std::set<std::string> &twoHopResults, std::string filename, std::
         }
     }
     file.close();
+    file2.close(); 
+
+    std::cout<<"comment num:"<<comment.size()<<std::endl;
+    std::cout<<"post num:"<<post.size()<<std::endl;
+    std::cout<<"forum num:"<<forum.size()<<std::endl;
+       
+
+}
+
+void loadExknows(std::string filename,
+                std::map<std::string, std::map<std::string,std::string>>& knows,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& person_hasInterest_tag,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& person_isLocatedIn_place,
+                std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& person_studyAt_organisation,
+                std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& person_workAt_organisation,
+                std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& forum_hasMember_person_r,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& forum_hasModerator_person_r,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& forum_hasModerator_person,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& comment_hasCreator_person_r,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& comment_hasCreator_person,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& post_hasCreator_person_r,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& post_hasCreator_person,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& post_hasTag_tag,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& post_isLocatedIn_place,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& comment_hasTag_tag,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& comment_isLocatedIn_place,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& forum_containerOf_post_r,
+                std::unordered_map<std::string, std::unordered_set<std::string>>& reply1,
+                std::unordered_map<std::string, std::unordered_set<std::string>>& reply2,
+                std::unordered_map<std::string, std::string>& person_0_0,
+                std::unordered_map<std::string, std::string>& comment_0_0,
+                std::unordered_map<std::string, std::string>& post_0_0,
+                std::unordered_map<std::string, std::string>& forum_0_0) {
+    // 获取文件夹路径
+    // std::string directory = filename.substr(0, filename.find_last_of('/'));
+    std::string directory = filename;
+
+    std::cout<<"inputdir:"<<directory<<std::endl;
+    
+    // person_hasInterest_tag
+    
+    std::ifstream file(directory+"/person_hasInterest_tag_0_0.csv");
+    
+    std::string line;
+
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        person_hasInterest_tag[items[0]].insert(items[1]);
+    }
+    file.close();
+    
+    // person_isLocatedIn_city
+    
+    file.open(directory+"/person_isLocatedIn_place_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        person_isLocatedIn_place[items[0]].insert(items[1]);
+    }
+    file.close();
+    
+    // person_studyAt_university
+    
+    file.open(directory+"/person_studyAt_organisation_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 3) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        person_studyAt_organisation[items[0]][items[1]] = items[2];
+    }
+    file.close();
+    
+    
+    // person_workAt_company
+    
+    file.open(directory+"/person_workAt_organisation_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 3) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        person_workAt_organisation[items[0]][items[1]] = items[2];
+    }
+    file.close();
+    
+    
+    // forum_hasMember_person
+    
+    file.open(directory+"/forum_hasMember_person_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 3) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        forum_hasMember_person_r[items[1]][items[0]] = items[2];
+    }
+    file.close();
+    
+    // forum_hasModerator_person
+
+    file.open(directory+"/forum_hasModerator_person_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        forum_hasModerator_person_r[items[1]].insert(items[0]);
+        forum_hasModerator_person[items[0]].insert(items[1]);
+    }
+    file.close();
+
+    // comment hasCreator person
+    file.open(directory+"/comment_hasCreator_person_0_0.csv");
+    // file2<<"Comment.id|Person.id"<<std::endl;    //为什么没有输出到呢，open会覆盖
+
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        comment_hasCreator_person_r[items[1]].insert(items[0]);
+        comment_hasCreator_person[items[0]].insert(items[1]);
+    }
+    file.close();
+
+    // post hasCreator person
+    file.open(directory+"/post_hasCreator_person_0_0.csv");
+    // file2<<"Post.id|Person.id"<<std::endl;
+
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        post_hasCreator_person_r[items[1]].insert(items[0]);
+        post_hasCreator_person[items[0]].insert(items[1]);
+    }
+    file.close();
+
+    file.open(directory+"/comment_replyOf_comment_0_0.csv");
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+
+        reply1[items[0]].insert(items[1]);
+    }
+    file.close();
+
+    file.open(directory+"/comment_replyOf_post_0_0.csv");
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+
+        reply2[items[0]].insert(items[1]);
+    }
+    file.close();
+    
+    
+	// post_hasTag_tag
+    file.open(directory+"/post_hasTag_tag_0_0.csv");
+    // std::set <std::string> newPerson;
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        
+        post_hasTag_tag[items[0]].insert(items[1]);
+    }
+    file.close();
+
+	// post_isLocatedIn_place
+    file.open(directory+"/post_isLocatedIn_place_0_0.csv");
+    // std::set <std::string> newPerson;
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        
+        post_isLocatedIn_place[items[0]].insert(items[1]);
+    }
+    file.close();
+	
+	
+	// comment_hasTag_tag
+    file.open(directory+"/comment_hasTag_tag_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        
+        comment_hasTag_tag[items[0]].insert(items[1]);
+    }
+    file.close();
+    
+	// comment_isLocatedIn_place
+    file.open(directory+"/comment_isLocatedIn_place_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        comment_isLocatedIn_place[items[0]].insert(items[1]);
+    }
+    file.close();
+    
+    
+	// forum_containerOf_post
+    file.open(directory+"/forum_containerOf_post_0_0.csv");
+    std::set <std::string> newForum;
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        forum_containerOf_post_r[items[1]].insert(items[0]);
+    }
+    file.close();
+
+	// forum
+    file.open(directory+"/forum_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+        forum_0_0[items[0]] = line;
+    }
+    file.close();
+
+	// person
+    file.open(directory+"/person_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+        person_0_0[items[0]] = line;
+    }
+    file.close();
+
+	// comment
+    file.open(directory+"/comment_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+        comment_0_0[items[0]] = line;
+    }
+    file.close();
+
+	// post
+    file.open(directory+"/post_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+        post_0_0[items[0]] = line;
+    }
+    file.close();
+
+}
+
+void divideInMemory(std::set<std::string> &twoHopResults, std::string outdir, std::set<std::string>& comment, std::set<std::string>& post, 
+                std::map<std::string, std::map<std::string,std::string>>& knows,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& person_hasInterest_tag,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& person_isLocatedIn_place,
+                std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& person_studyAt_organisation,
+                std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& person_workAt_organisation,
+                std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& forum_hasMember_person_r,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& forum_hasModerator_person_r,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& forum_hasModerator_person,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& comment_hasCreator_person_r,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& comment_hasCreator_person,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& post_hasCreator_person_r,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& post_hasCreator_person,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& post_hasTag_tag,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& post_isLocatedIn_place,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& comment_hasTag_tag,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& comment_isLocatedIn_place,
+                std::unordered_map<std::string,std::unordered_set<std::string>>& forum_containerOf_post_r,
+                std::unordered_map<std::string, std::unordered_set<std::string>>& reply1,
+                std::unordered_map<std::string, std::unordered_set<std::string>>& reply2,
+                std::unordered_map<std::string, std::string>& person_0_0,
+                std::unordered_map<std::string, std::string>& comment_0_0,
+                std::unordered_map<std::string, std::string>& post_0_0,
+                std::unordered_map<std::string, std::string>& forum_0_0) {
+    // 获取文件夹路径
+    // std::string directory = filename.substr(0, filename.find_last_of('/'));
+    std::string directory1 = "./0/";
+    directory1 = outdir;
+
+    // 如果文件夹不存在，则创建它
+    if (!createDirectory(directory1)) {
+        std::cerr << "Failed or no need to create directory." << std::endl;
+    }
+    std::cout<<"outputdir:"<<directory1<<std::endl;
+    
+    std::set<std::string> forum;
+
+    // person_hasInterest_tag
+    std::ofstream file2(directory1+"/person_hasInterest_tag_0_0.csv");
+    for(auto i:twoHopResults){
+        if(person_hasInterest_tag.find(i)!=person_hasInterest_tag.end()){
+            for(auto j:person_hasInterest_tag[i]){
+                file2<<i<<'|'<<j<<std::endl;
+            }
+        }
+    }
+    file2.close(); 
+    
+    // person_isLocatedIn_city
+    
+    file2.open(directory1+"/person_isLocatedIn_place_0_0.csv");
+    
+    for(auto i:twoHopResults){
+        if(person_isLocatedIn_place.find(i)!=person_isLocatedIn_place.end()){
+            for(auto j:person_isLocatedIn_place[i]){
+                file2<<i<<'|'<<j<<std::endl;
+            }
+        }
+    }
+    file2.close(); 
+    
+    // person_studyAt_university
+    
+    
+    file2.open(directory1+"/person_studyAt_organisation_0_0.csv");
+    
+    for(auto i:twoHopResults){
+        if(person_studyAt_organisation.find(i)!=person_studyAt_organisation.end()){
+            for(auto j:person_studyAt_organisation[i]){
+                file2<<i<<'|'<<j.first<<'|'<<j.second<<std::endl;
+            }
+        }
+    }
+    file2.close(); 
+    
+    // person_workAt_company
+
+    file2.open(directory1+"/person_workAt_organisation_0_0.csv");
+    
+    for(auto i:twoHopResults){
+        if(person_workAt_organisation.find(i)!=person_workAt_organisation.end()){
+            for(auto j:person_workAt_organisation[i]){
+                file2<<i<<'|'<<j.first<<'|'<<j.second<<std::endl;
+            }
+        }
+    }
+    file2.close(); 
+    
+    
+    // forum_hasMember_person
+    
+    file2.open(directory1+"/forum_hasMember_person_0_0.csv");
+    for(auto i:twoHopResults){
+        if(forum_hasMember_person_r.find(i)!=forum_hasMember_person_r.end()){
+            for(auto j:forum_hasMember_person_r[i]){
+                file2<<j.first<<'|'<<i<<'|'<<j.second<<std::endl;
+                forum.insert(j.first);
+            }
+        }
+    }
+    file2.close(); 
+    
+    // forum_hasModerator_person
+
+    file2.open(directory1+"/forum_hasModerator_person_0_0.csv");
+    for(auto i:twoHopResults){
+        if(forum_hasModerator_person_r.find(i)!=forum_hasModerator_person_r.end()){
+            for(auto j:forum_hasModerator_person_r[i]){
+                file2<<j<<'|'<<i<<std::endl;
+                forum.insert(j);
+            }
+        }
+    }
+    file2.close(); 
+
+    // comment hasCreator person
+    file2.open(directory1+"/comment_hasCreator_person_0_0.csv");
+    for(auto i:twoHopResults){
+        if(comment_hasCreator_person_r.find(i)!=comment_hasCreator_person_r.end()){
+            for(auto j:comment_hasCreator_person_r[i]){
+                // file2<<j<<'|'<<i<<std::endl;
+                comment.insert(j);
+            }
+        }
+    }
+    file2.close();
+
+    // post hasCreator person
+    file2.open(directory1+"/post_hasCreator_person_0_0.csv");
+    
+    for(auto i:twoHopResults){
+        if(post_hasCreator_person_r.find(i)!=post_hasCreator_person_r.end()){
+            for(auto j:post_hasCreator_person_r[i]){
+                file2<<j<<'|'<<i<<std::endl;
+                post.insert(j);
+            }
+        }
+    }
+    file2.close();
+    
+
+	// commet链至post
+    // dfs+路径压缩
+    std::ofstream file3_1(directory1+"/comment_replyOf_comment_0_0.csv");
+    std::ofstream file3_2(directory1+"/comment_replyOf_post_0_0.csv");
+    // 去重comment2comment
+    std::unordered_map<std::string,std::unordered_map<std::string,int>> visited; 
+    // 去重comment2post
+    std::unordered_map<std::string,std::unordered_map<std::string,int>> visited1; 
+
+    // dfs得到 所有的commentPath(comment commment-neigbor comment-end)
+    std::unordered_map<std::string,std::vector<std::string>> commentPath;
+    for (auto i=comment.begin();i!=comment.end();i++) {
+        std::vector<std::string> tmp;
+        dfs(*i, reply1, tmp, commentPath);
+	}
+    // 路径压缩
+    // 从引入的comment开始dfs得到（起点comment，一跳comment，终点comment）
+    // 1.（起点，，）
+    // 加入起点comment的post的边及邻居
+    // 2.（起点，一跳，）
+    // 加入起点到一跳的边及邻居，加入起点到【一跳comment的post邻居】和起点到【一跳comment的post邻居】边
+    // 2.（起点，一跳，终点）
+    // 加入起点到一跳的边及邻居，加入起点到【终点comment的post邻居】和起点到【终点comment的post邻居】边
+    for(auto i=commentPath.begin();i!=commentPath.end();i++) {
+        std::string from = i->first;
+    	std::vector<std::string> tmp = i->second;
+        if(tmp.size()==1) {
+            // comment没有comment邻居
+            // ！！！这里也要存post
+            comment.insert(tmp[0]); // 里面本来就存了
+            // file3_1<<tmp[0]<<'|'<<tmp[1]<<std::endl;
+            for(std::string j : reply2[tmp[0]]) {
+                post.insert(j);
+                if(visited1[tmp[0]].find(j)==visited1[tmp[0]].end()) {
+                    visited1[tmp[0]][j] = 1;
+                    file3_2<<tmp[0]<<'|'<<j<<std::endl;
+                }
+                // file3_2<<tmp[0]<<'|'<<j<<std::endl;
+            }
+        } else if(tmp.size()==2) {
+            // comment只有一步comment
+            comment.insert(tmp[1]);
+            if(visited[tmp[0]].find(tmp[1])==visited[tmp[0]].end()) {
+                visited[tmp[0]][tmp[1]] = 1;
+                file3_1<<tmp[0]<<'|'<<tmp[1]<<std::endl;
+            }
+            // file3_1<<tmp[0]<<'|'<<tmp[1]<<std::endl;
+            for(std::string j : reply2[tmp[1]]) {
+                // comment存在comment链
+                post.insert(j);
+                if(visited1[tmp[1]].find(j)==visited1[tmp[1]].end()) {
+                    visited1[tmp[1]][j] = 1;
+                    file3_2<<tmp[1]<<'|'<<j<<std::endl;
+                }
+                // file3_2<<tmp[1]<<'|'<<j<<std::endl;
+            }
+        } else {
+            // 顶点有多步邻居
+            comment.insert(tmp[1]);
+            if(visited[tmp[0]].find(tmp[1])==visited[tmp[0]].end()) {
+                visited[tmp[0]][tmp[1]] = 1;
+                file3_1<<tmp[0]<<'|'<<tmp[1]<<std::endl;
+            }
+            // file3_1<<tmp[0]<<'|'<<tmp[1]<<std::endl;
+            // 这里把末端邻居合并为post
+            for(std::string j : reply2[tmp[2]]) {
+                post.insert(j);
+                if(visited1[tmp[1]].find(j)==visited1[tmp[1]].end()) {
+                    visited1[tmp[1]][j] = 1;
+                    file3_2<<tmp[1]<<'|'<<j<<std::endl;
+                }
+                // 压缩了路径，不过好像导致comment2post变多了？
+            }
+        }
+    }
+	
+	// comment_hasCreator_person
+    file2.open(directory1+"/comment_hasCreator_person_0_0.csv");// 注意这里防止覆盖app打开
+    // 这里有所有的新的comment，这里所有的comment到person的边都是需要加的，所以前面不需要加，这里就是要覆盖
+    // 新comment到person
+    std::set <std::string> newPerson;
+    for(auto c:comment) {
+        if(comment_hasCreator_person.find(c)!=comment_hasCreator_person.end()) {
+            for(auto p:comment_hasCreator_person[c]) {
+                if(twoHopResults.find(p)==twoHopResults.end()) {
+                    newPerson.insert(p);    //newPerson干啥了？好像没用吧
+                    twoHopResults.insert(p);
+                }
+                file2<<c<<'|'<<p<<std::endl;    // 所有comment到person的边都是需要加的
+            }
+        }
+    }
+    file2.close();
+    
+    
+	// post_hasCreator_person
+    file2.open(directory1+"/post_hasCreator_person_0_0.csv", std::ios::app);
+    for(auto p:post) {
+        if(post_hasCreator_person.find(p)!=post_hasCreator_person.end()) {
+            for(auto c:post_hasCreator_person[p]) {
+                if(twoHopResults.find(c)==twoHopResults.end()) {
+                    newPerson.insert(c);
+                    twoHopResults.insert(c);
+                    file2<<p<<'|'<<c<<std::endl;    // 不是新person不用再引入
+                }
+            }
+        }
+    }
+    file2.close();
+    
+    // todo:newPerson与其他person的knows,finished!
+    // 是否需要传入knows? 传入吧 直接打开新建也是一样
+    // 遍历twoHopResults中的每个person
+    file2.open(directory1+"/person_knows_person_0_0.csv");
+    std::map<std::string, std::map<std::string,int>> kvisited;
+    for (const auto& person : twoHopResults) {
+        if (knows.find(person) != knows.end()) {
+            // 找到person的所有邻居
+            for (const auto& neighbor : knows[person]) {
+                // 将每个person与其邻居之间的knows边存储起来
+                if(twoHopResults.find(neighbor.first)!=twoHopResults.end()){
+                    if(!isEdgeVisited(neighbor.first, person, kvisited)) {
+                        kvisited[person][neighbor.first] = 1;
+                        file2<<person<<'|'<<neighbor.first<<'|'<<neighbor.second<<std::endl;
+                    }
+                }
+            }
+        }
+    }
+    file2.close();
+    
+    
+	// post_hasTag_tag
+    file2.open(directory1+"/post_hasTag_tag_0_0.csv");
+    for(auto p:post) {
+        if(post_hasTag_tag.find(p)!=post_hasTag_tag.end()) {
+            for(auto t:post_hasTag_tag[p]) {
+                file2<<p<<'|'<<t<<std::endl;
+            }
+        }
+    }
+    file2.close(); 
+
+	// post_isLocatedIn_place
+    file2.open(directory1+"/post_isLocatedIn_place_0_0.csv");
+    for(auto p:post) {
+        if(post_isLocatedIn_place.find(p)!=post_isLocatedIn_place.end()) {
+            for(auto t:post_isLocatedIn_place[p]) {
+                file2<<p<<'|'<<t<<std::endl;
+            }
+        }
+    }
+    file2.close(); 
+	
+	
+	// comment_hasTag_tag
+    file2.open(directory1+"/comment_hasTag_tag_0_0.csv");
+    for(auto c:comment) {
+        if(comment_hasTag_tag.find(c)!=comment_hasTag_tag.end()) {
+            for(auto t:comment_hasTag_tag[c]) {
+                file2<<c<<'|'<<t<<std::endl;
+            }
+        }
+    }
+    file2.close(); 
+    
+	// comment_isLocatedIn_place
+    file2.open(directory1+"/comment_isLocatedIn_place_0_0.csv");
+    for(auto c:comment) {
+        if(comment_isLocatedIn_place.find(c)!=comment_isLocatedIn_place.end()) {
+            for(auto t:comment_isLocatedIn_place[c]) {
+                file2<<c<<'|'<<t<<std::endl;
+            }
+        }
+    }
+    file2.close(); 
+    
+    
+	// forum_containerOf_post
+    file2.open(directory1+"/forum_containerOf_post_0_0.csv");
+    std::set <std::string> newForum;
+    for(auto p: post) {
+        if(forum_containerOf_post_r.find(p)!=forum_containerOf_post_r.end()) {
+            for(auto f:forum_containerOf_post_r[p]) {
+                file2<<f<<'|'<<p<<std::endl;
+                forum.insert(f);
+                if(forum.find(f)==forum.end()) {
+                    newForum.insert(f);
+                }
+            }
+        }
+    }
+    file2.close(); 
+    
+    // new forum has moderator person
+    file2.open(directory1+"/forum_hasModerator_person_0_0.csv",std::ios::app);
+    for(auto i=newForum.begin();i!=newForum.end();i++) {
+    	std::string forum = *i;
+    	for (auto j : forum_hasModerator_person[forum]) {
+            if(twoHopResults.find(j)==twoHopResults.end()){
+                twoHopResults.insert(j);
+                file2<<forum<<"|"<<j<<std::endl;    //已经存在的人是不会需要加这条边的
+            }
+		}
+	}
+    file2.close();
+
+    // 不需要这个！
+    // file2.open(directory1+"/forum_hasTag_tag_0_0.csv");
+    // for(auto i:forum){
+    //     if(forum_hasTag_tag.find(i)!=forum_hasTag_tag.end()){
+    //         for(auto j:forum_hasTag_tag[i]){
+    //             file2<<i<<'|'<<j<<std::endl;
+    //         }
+    //     }
+    // }
+    // file2.close(); 
+
+	// forum
+    file2.open(directory1+"/forum_0_0.csv");
+    for(auto i:forum){
+        file2<<forum_0_0[i]<<std::endl;
+    }
+    file2.close(); 
+
+	// person
+    file2.open(directory1+"/person_0_0.csv");
+    for(auto i:twoHopResults){
+        file2<<person_0_0[i]<<std::endl;
+    }
+    file2.close(); 
+
+	// comment
+    file2.open(directory1+"/comment_0_0.csv");
+    for(auto i:comment){
+        file2<<comment_0_0[i]<<std::endl;
+    }
+    file2.close(); 
+
+	// post
+    file2.open(directory1+"/post_0_0.csv");
+    for(auto i:post){
+        file2<<post_0_0[i]<<std::endl;
+    }
     file2.close(); 
 
     std::cout<<"comment num:"<<comment.size()<<std::endl;
@@ -1207,17 +2036,704 @@ std::set<std::set<std::string>> merge_high_similarity_sets(std::set<std::set<std
     return twoHopSets;
 }
 
+void partition1(std::string inputdir, std::map<std::string, Person> people, std::map<std::string, std::map<std::string,std::string>> knows,std::map<std::string, std::set<std::string>> two_hop_neighbors) {
+    
+    std::ofstream outfile("./route/message2person.txt");
+    std::ifstream infile(inputdir+"comment_hasCreator_person.csv");
+    std::string line;
+    while (std::getline(infile, line)) {
+        outfile << line << std::endl;
+    }
+    infile.close();
+    infile.open(inputdir+"post_hasCreator_person.csv");
+    std::string tmplines;
+    while (std::getline(infile, tmplines)) {
+        outfile << line << std::endl;
+    }
+    outfile.close();
+
+    std::ofstream outfile1("./route/person2part.txt");
+    for(auto i:people) {
+        outfile1<<i.first<<'|'<<i.first<<std::endl;
+    }
+    outfile1.close();
+
+    
+    // 划分方法1：每个person做中心person
+    int part = 0;
+    for(auto it=people.begin();it!=people.end();it++){
+        std::cout<<part<<std::endl;
+        
+        std::string givenPersonID = it->first; // Example ID
+        std::set<std::string> twoHopResults;
+
+        twoHopResults = two_hop_neighbors[givenPersonID];
+        twoHopResults.insert(givenPersonID);
+
+        std::cout<<"center PersonID:"<<givenPersonID<<std::endl;
+
+        std::cout<<"twohop persons num:"<<twoHopResults.size()<<std::endl;
+        // 邻居最小一跳/二跳，基本上是一致的
+        std::set<std::string> center;
+        center.insert(givenPersonID);
+        std::set<std::string> cNeighbor = getKnowsNeighbor(center,knows);
+
+        std::set<std::string> comment;
+        std::set<std::string> post;
+
+        getDivide(twoHopResults, inputdir, "./output/"+givenPersonID+"/", comment, post, knows);
+        
+        std::cout<<"part persons num:"<<twoHopResults.size()<<std::endl<<std::endl;
+        part++;
+    }
+}
+
+void partition1_1(std::string inputdir, std::map<std::string, Person> people, std::map<std::string, std::map<std::string,std::string>> knows,std::map<std::string, std::set<std::string>> two_hop_neighbors) {
+    // 划分方法1：一次load
+    std::unordered_map<std::string,std::unordered_set<std::string>> person_hasInterest_tag;
+    std::unordered_map<std::string,std::unordered_set<std::string>> person_isLocatedIn_place;
+    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_studyAt_organisation;
+    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_workAt_organisation;
+    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> forum_hasMember_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> forum_hasModerator_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> forum_hasModerator_person;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasCreator_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasCreator_person;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasCreator_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasCreator_person;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasTag_tag;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_isLocatedIn_place;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasTag_tag;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_isLocatedIn_place;
+    std::unordered_map<std::string,std::unordered_set<std::string>> forum_containerOf_post_r;
+    std::unordered_map<std::string, std::unordered_set<std::string>> reply1;
+    std::unordered_map<std::string, std::unordered_set<std::string>> reply2;
+    std::unordered_map<std::string, std::string> person_0_0;
+    std::unordered_map<std::string, std::string> comment_0_0;
+    std::unordered_map<std::string, std::string> post_0_0;
+    std::unordered_map<std::string, std::string> forum_0_0;
+
+    loadExknows(inputdir, knows, person_hasInterest_tag,person_isLocatedIn_place,person_studyAt_organisation,person_workAt_organisation,forum_hasMember_person_r,forum_hasModerator_person_r,forum_hasModerator_person,comment_hasCreator_person_r,comment_hasCreator_person,post_hasCreator_person_r,post_hasCreator_person,post_hasTag_tag,post_isLocatedIn_place,comment_hasTag_tag,comment_isLocatedIn_place,forum_containerOf_post_r,reply1,reply2,person_0_0,comment_0_0,post_0_0,forum_0_0);
+    
+    
+    std::ofstream outfile("./route/message2person.txt");
+    for(auto i:comment_hasCreator_person){
+        for(auto j:comment_hasCreator_person[i.first]){
+            outfile<<i.first<<'|'<<j<<std::endl;
+        }
+    }
+    for(auto i:post_hasCreator_person){
+        for(auto j:post_hasCreator_person[i.first]){
+            outfile<<i.first<<'|'<<j<<std::endl;
+        }
+    }
+    outfile.close();
+
+    std::ofstream outfile1("./route/person2part.txt");
+    for(auto i:people) {
+        outfile1<<i.first<<'|'<<i.first<<std::endl;
+    }
+    outfile1.close();
+
+    // 划分方法1.1：每个person做中心person
+    int part = 0;
+    
+    for(auto it=people.begin();it!=people.end();it++){
+        std::cout<<part<<std::endl;
+        
+        std::string givenPersonID = it->first; // Example ID
+        std::set<std::string> twoHopResults;
+
+        twoHopResults = two_hop_neighbors[givenPersonID];
+        twoHopResults.insert(givenPersonID);
+
+        std::cout<<"center PersonID:"<<givenPersonID<<std::endl;
+
+        std::cout<<"twohop persons num:"<<twoHopResults.size()<<std::endl;
+        // 邻居最小一跳/二跳，基本上是一致的
+        std::set<std::string> center;
+        center.insert(givenPersonID);
+        std::set<std::string> cNeighbor = getKnowsNeighbor(center,knows);
+
+        std::set<std::string> comment;
+        std::set<std::string> post;
+
+        divideInMemory(twoHopResults, "./output/"+givenPersonID+"/", comment, post, knows, person_hasInterest_tag, person_isLocatedIn_place, person_studyAt_organisation, person_workAt_organisation, forum_hasMember_person_r, forum_hasModerator_person_r, forum_hasModerator_person, comment_hasCreator_person_r, comment_hasCreator_person, post_hasCreator_person_r, post_hasCreator_person, post_hasTag_tag, post_isLocatedIn_place, comment_hasTag_tag, comment_isLocatedIn_place, forum_containerOf_post_r, reply1, reply2, person_0_0, comment_0_0, post_0_0, forum_0_0);
+        std::cout<<"part persons num:"<<twoHopResults.size()<<std::endl<<std::endl;
+        part++;
+    }
+}
+
+void partition2(int input_threshhold, std::string inputdir, std::map<std::string, Person> people, std::map<std::string, std::map<std::string,std::string>> knows,std::map<std::string, std::set<std::string>> two_hop_neighbors, std::map<std::string, int> neighbor_counts) {
+    // 划分方法2：贪心算法合并person
+    int part = 0;
+    std::set<std::string> peopleSet;
+    for(auto it=people.begin();it!=people.end();it++){
+        peopleSet.insert(it->first);
+    }
+    std::ofstream tmpfile("./route/person2part.txt");
+    
+    while(peopleSet.size()!=0) {
+        std::cout<<"part:"<<part<<std::endl;
+        std::string seed = getBiggestOneHop(peopleSet,neighbor_counts);
+        if(seed=="") continue;
+        
+        std::set<std::string> twoHopResults;
+        twoHopResults.insert(seed);
+        twoHopResults.insert(two_hop_neighbors[seed].begin(), two_hop_neighbors[seed].end());
+        
+        std::set<std::string> center;
+        center.insert(seed);
+        std::set<std::string> cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
+        
+        int threshhold = twoHopResults.size();
+        for (const auto& person : center) {
+            cNeighbor.erase(person);
+        }
+        while(cNeighbor.size()!=0&&threshhold<input_threshhold) {
+            
+            std::string smallestOneHop = getSmallestOneHop(cNeighbor,neighbor_counts);
+            if(smallestOneHop=="") break;
+            threshhold = calculateSetTwoHopNeighborNumNew(threshhold, smallestOneHop, twoHopResults, two_hop_neighbors); 
+            if(threshhold>1355) break;
+            
+            center.insert(smallestOneHop);
+            twoHopResults.insert(smallestOneHop);
+            twoHopResults.insert(two_hop_neighbors[smallestOneHop].begin(), two_hop_neighbors[smallestOneHop].end());
+            
+           
+            // 获取center的邻居
+            cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
+            // std::cout<<"cNeighborsize:"<<cNeighbor.size()<<std::endl;
+            for (const auto& person : center) {
+                cNeighbor.erase(person);
+            }
+            
+        }
+        std::cout<<"center persons num:"<<center.size()<<std::endl;
+        std::cout<<"threshhold:"<<threshhold<<std::endl;
+        std::cout<<"twohop persons num:"<<twoHopResults.size()<<std::endl;
+        std::string outPath = "./output/";
+        outPath+=std::to_string(part);
+        for(auto it=center.begin();it!=center.end();it++){
+            tmpfile<<*it<<'|'<<part<<std::endl;
+        }
+
+        std::set<std::string> comment;
+        std::set<std::string> post;
+        getDivide(twoHopResults, inputdir, outPath, comment, post, knows);
+        
+        std::cout<<"part persons num:"<<twoHopResults.size()<<std::endl<<std::endl;
+        
+        part++;
+
+        for (const auto& person : center) {
+            peopleSet.erase(person);
+        }
+    }
+}
+
+void partition2_1(int input_threshhold, std::string inputdir, std::map<std::string, Person> people, std::map<std::string, std::map<std::string,std::string>> knows,std::map<std::string, std::set<std::string>> two_hop_neighbors, std::map<std::string, int> neighbor_counts) {
+     // 划分方法2.1：一次load 贪心算法合并person
+    std::unordered_map<std::string,std::unordered_set<std::string>> person_hasInterest_tag;
+    std::unordered_map<std::string,std::unordered_set<std::string>> person_isLocatedIn_place;
+    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_studyAt_organisation;
+    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_workAt_organisation;
+    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> forum_hasMember_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> forum_hasModerator_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> forum_hasModerator_person;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasCreator_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasCreator_person;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasCreator_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasCreator_person;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasTag_tag;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_isLocatedIn_place;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasTag_tag;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_isLocatedIn_place;
+    std::unordered_map<std::string,std::unordered_set<std::string>> forum_containerOf_post_r;
+    std::unordered_map<std::string, std::unordered_set<std::string>> reply1;
+    std::unordered_map<std::string, std::unordered_set<std::string>> reply2;
+    std::unordered_map<std::string, std::string> person_0_0;
+    std::unordered_map<std::string, std::string> comment_0_0;
+    std::unordered_map<std::string, std::string> post_0_0;
+    std::unordered_map<std::string, std::string> forum_0_0;
+
+    loadExknows(inputdir,knows, person_hasInterest_tag,person_isLocatedIn_place,person_studyAt_organisation,person_workAt_organisation,forum_hasMember_person_r,forum_hasModerator_person_r,forum_hasModerator_person,comment_hasCreator_person_r,comment_hasCreator_person,post_hasCreator_person_r,post_hasCreator_person,post_hasTag_tag,post_isLocatedIn_place,comment_hasTag_tag,comment_isLocatedIn_place,forum_containerOf_post_r,reply1,reply2,person_0_0,comment_0_0,post_0_0,forum_0_0);
+    
+    std::ofstream outfile("./route/message2person.txt");
+    for(auto i:comment_hasCreator_person){
+        for(auto j:comment_hasCreator_person[i.first]){
+            outfile<<i.first<<'|'<<j<<std::endl;
+        }
+    }
+    for(auto i:post_hasCreator_person){
+        for(auto j:post_hasCreator_person[i.first]){
+            outfile<<i.first<<'|'<<j<<std::endl;
+        }
+    }
+    outfile.close();
+
+    int part = 0;
+    std::set<std::string> peopleSet;
+    for(auto it=people.begin();it!=people.end();it++){
+        peopleSet.insert(it->first);
+    }
+    std::ofstream tmpfile("./route/person2part.txt");
+    
+    while(peopleSet.size()!=0) {
+        std::cout<<"part:"<<part<<std::endl;
+        std::string seed = getBiggestOneHop(peopleSet,neighbor_counts);
+        if(seed=="") continue;
+        
+        std::set<std::string> twoHopResults;
+        twoHopResults.insert(seed);
+        twoHopResults.insert(two_hop_neighbors[seed].begin(), two_hop_neighbors[seed].end());
+        
+        std::set<std::string> center;
+        center.insert(seed);
+        std::set<std::string> cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
+        
+        int threshhold = twoHopResults.size();
+        for (const auto& person : center) {
+            cNeighbor.erase(person);
+        }
+        while(cNeighbor.size()!=0&&threshhold<input_threshhold) {
+            
+            std::string smallestOneHop = getSmallestOneHop(cNeighbor,neighbor_counts);
+            if(smallestOneHop=="") break;
+            threshhold = calculateSetTwoHopNeighborNumNew(threshhold, smallestOneHop, twoHopResults, two_hop_neighbors); 
+            // if(threshhold>1355) break;
+            
+            center.insert(smallestOneHop);
+            twoHopResults.insert(smallestOneHop);
+            twoHopResults.insert(two_hop_neighbors[smallestOneHop].begin(), two_hop_neighbors[smallestOneHop].end());
+            
+           
+            // 获取center的邻居
+            cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
+            // std::cout<<"cNeighborsize:"<<cNeighbor.size()<<std::endl;
+            for (const auto& person : center) {
+                cNeighbor.erase(person);
+            }
+            
+        }
+        std::cout<<"center persons num:"<<center.size()<<std::endl;
+        std::cout<<"threshhold:"<<threshhold<<std::endl;
+        std::cout<<"twohop persons num:"<<twoHopResults.size()<<std::endl;
+        std::string outPath = "./output/";
+        outPath+=std::to_string(part);
+        for(auto it=center.begin();it!=center.end();it++){
+            tmpfile<<*it<<' '<<part<<std::endl;
+        }
+
+        std::set<std::string> comment;
+        std::set<std::string> post;
+        divideInMemory(twoHopResults, outPath, comment, post, knows, person_hasInterest_tag, person_isLocatedIn_place, person_studyAt_organisation, person_workAt_organisation, forum_hasMember_person_r, forum_hasModerator_person_r, forum_hasModerator_person, comment_hasCreator_person_r, comment_hasCreator_person, post_hasCreator_person_r, post_hasCreator_person, post_hasTag_tag, post_isLocatedIn_place, comment_hasTag_tag, comment_isLocatedIn_place, forum_containerOf_post_r, reply1, reply2, person_0_0, comment_0_0, post_0_0, forum_0_0);
+        
+        std::cout<<"part persons num:"<<twoHopResults.size()<<std::endl<<std::endl;
+        
+        part++;
+
+        for (const auto& person : center) {
+            peopleSet.erase(person);
+        }
+    }
+
+}
+
+void partition3(int input_threshhold, int input_similarity, std::string inputdir, std::map<std::string, Person> people, std::map<std::string, std::map<std::string,std::string>> knows,std::map<std::string, std::set<std::string>> two_hop_neighbors, std::map<std::string, int> neighbor_counts) {
+    // person2part还有问题！
+    // 划分方法3：3.1贪心算法合并person，3.2合并相似度高的两跳person集
+    std::set<std::set<std::string>> twoHopSets;   // 记录所有分片的两步邻居
+
+    std::set<std::string> peopleSet;    // 记录剩余未做种子分片的person，初始为所有person
+    for(auto it=people.begin();it!=people.end();it++){
+        peopleSet.insert(it->first);
+    }
+
+    int testCenter=0;
+    int testtwohop=0;
+
+    while(peopleSet.size()!=0) {    // 存在未作种子的person
+        // 取seed，即一跳邻居最多的person
+        std::string seed = getBiggestOneHop(peopleSet,neighbor_counts);
+        if(seed=="") continue;
+        
+        //将seed及其两跳邻居加入分片
+        std::set<std::string> twoHopResults;
+        twoHopResults.insert(seed);
+        twoHopResults.insert(two_hop_neighbors[seed].begin(), two_hop_neighbors[seed].end());
+        
+
+        // 将seed加入种子集即center
+        std::set<std::string> center;
+        center.insert(seed);
+        // 获取seed的一跳邻居，即候选种子，不包含已经作为center的person
+        std::set<std::string> cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
+        for (const auto& person : center) {
+            cNeighbor.erase(person);
+        }
+
+        int threshhold = twoHopResults.size();  // 阈值初始为seed的两跳邻居数目
+        while(cNeighbor.size()!=0&&threshhold<input_threshhold) {
+
+            // 在邻居中找到一跳邻居最小的person
+            std::string smallestOneHop = getSmallestOneHop(cNeighbor,neighbor_counts);
+            if (smallestOneHop == "") { // cNeighbor为空时返回为""，正常情况下循环直接结束其实不会执行
+                break;
+            }
+            // 更新阈值
+            threshhold = calculateSetTwoHopNeighborNumNew(threshhold, smallestOneHop, twoHopResults, two_hop_neighbors);
+            // if(threshhold>1700) break;
+
+            // 符合阈值则加入center和两步邻居
+            center.insert(smallestOneHop);
+            twoHopResults.insert(smallestOneHop);
+            twoHopResults.insert(two_hop_neighbors[smallestOneHop].begin(), two_hop_neighbors[smallestOneHop].end());
+            // peopleSet.erase(smallestOneHop); //这里可删可不删，cNeighbor.erase(center);会删掉
+
+            // 更新候选种子集，这里已经在两步邻居里的一步邻居还要做种子，相当于从比较小的扩张
+            cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
+            // 保证做过center的不会再被选为候选种子
+            for (const auto& person : center) {
+                cNeighbor.erase(person);
+            }
+            
+        }
+        
+        // 插入到twoHopSets中待合并
+        twoHopSets.insert(twoHopResults);
+        
+        // 保证做过种子的不会再在其他分片做种子
+        for (const auto& person : center) {
+            peopleSet.erase(person);
+        }
+
+        testCenter+=center.size();
+        testtwohop+=twoHopResults.size();
+    }
+    std::cout<<"all center person num:"<<testCenter<<std::endl;
+    std::cout<<"all twohop person num:"<<testtwohop<<std::endl;
+    
+    // 合并相似度高的两跳person集
+    double merge_threshold = input_similarity;  // 相似度阈值,为0时合为一个分片，为1时把孤立点合在一个分片其他分片不变
+    std::set<std::set<std::string>> mergedSets = merge_high_similarity_sets(twoHopSets, merge_threshold);
+    std::cout << "Number of merged sets: " << mergedSets.size() << std::endl;
+    std::cout << "Number of twoHopSets: " << twoHopSets.size() << std::endl;
+    
+    int part = 0;
+    // 通过合并后的种子集合生成分片
+    std::ofstream tmpfile("./route/person2part.txt");
+    for(auto i: mergedSets) {
+        std::string outPath = "./output/";
+        outPath+=std::to_string(part);
+        std::cout<<"part"<<part<<std::endl;
+        std::cout<<"twohop persons num:"<<i.size()<<std::endl;
+        for(auto it=i.begin();it!=i.end();it++){
+            // outPath += *it;
+            // outPath += "_";
+            tmpfile<<*it<<'|'<<part<<std::endl;
+        }
+        std::set<std::string> comment;
+        std::set<std::string> post;
+        getDivide(i, inputdir, outPath, comment, post, knows);
+        std::cout<<"part persons num:"<<i.size()<<std::endl<<std::endl;
+        part++;
+    }
+
+}
+
+void partition3_1(int input_threshhold, int input_similarity, std::string inputdir, std::map<std::string, Person> people, std::map<std::string, std::map<std::string,std::string>> knows,std::map<std::string, std::set<std::string>> two_hop_neighbors, std::map<std::string, int> neighbor_counts) {
+
+    // person2part还有问题！
+    // 划分方法3.1 一次load：3.1贪心算法合并person，3.2合并相似度高的两跳person集
+    std::unordered_map<std::string,std::unordered_set<std::string>> person_hasInterest_tag;
+    std::unordered_map<std::string,std::unordered_set<std::string>> person_isLocatedIn_place;
+    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_studyAt_organisation;
+    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_workAt_organisation;
+    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> forum_hasMember_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> forum_hasModerator_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> forum_hasModerator_person;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasCreator_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasCreator_person;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasCreator_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasCreator_person;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasTag_tag;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_isLocatedIn_place;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasTag_tag;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_isLocatedIn_place;
+    std::unordered_map<std::string,std::unordered_set<std::string>> forum_containerOf_post_r;
+    std::unordered_map<std::string, std::unordered_set<std::string>> reply1;
+    std::unordered_map<std::string, std::unordered_set<std::string>> reply2;
+    std::unordered_map<std::string, std::string> person_0_0;
+    std::unordered_map<std::string, std::string> comment_0_0;
+    std::unordered_map<std::string, std::string> post_0_0;
+    std::unordered_map<std::string, std::string> forum_0_0;
+
+    loadExknows(inputdir,knows, person_hasInterest_tag,person_isLocatedIn_place,person_studyAt_organisation,person_workAt_organisation,forum_hasMember_person_r,forum_hasModerator_person_r,forum_hasModerator_person,comment_hasCreator_person_r,comment_hasCreator_person,post_hasCreator_person_r,post_hasCreator_person,post_hasTag_tag,post_isLocatedIn_place,comment_hasTag_tag,comment_isLocatedIn_place,forum_containerOf_post_r,reply1,reply2,person_0_0,comment_0_0,post_0_0,forum_0_0);
+
+    
+    std::ofstream outfile("./route/message2person.txt");
+    for(auto i:comment_hasCreator_person){
+        for(auto j:comment_hasCreator_person[i.first]){
+            outfile<<i.first<<'|'<<j<<std::endl;
+        }
+    }
+    for(auto i:post_hasCreator_person){
+        for(auto j:post_hasCreator_person[i.first]){
+            outfile<<i.first<<'|'<<j<<std::endl;
+        }
+    }
+    outfile.close();
+
+    std::set<std::set<std::string>> twoHopSets;   // 记录所有分片的两步邻居
+
+    std::set<std::string> peopleSet;    // 记录剩余未做种子分片的person，初始为所有person
+    for(auto it=people.begin();it!=people.end();it++){
+        peopleSet.insert(it->first);
+    }
+
+    int testCenter=0;
+    int testtwohop=0;
+
+    while(peopleSet.size()!=0) {    // 存在未作种子的person
+        // 取seed，即一跳邻居最多的person
+        std::string seed = getBiggestOneHop(peopleSet,neighbor_counts);
+        if(seed=="") continue;
+        
+        //将seed及其两跳邻居加入分片
+        std::set<std::string> twoHopResults;
+        twoHopResults.insert(seed);
+        twoHopResults.insert(two_hop_neighbors[seed].begin(), two_hop_neighbors[seed].end());
+        
+
+        // 将seed加入种子集即center
+        std::set<std::string> center;
+        center.insert(seed);
+        // 获取seed的一跳邻居，即候选种子，不包含已经作为center的person
+        std::set<std::string> cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
+        for (const auto& person : center) {
+            cNeighbor.erase(person);
+        }
+
+        int threshhold = twoHopResults.size();  // 阈值初始为seed的两跳邻居数目
+        while(cNeighbor.size()!=0&&threshhold<input_threshhold) {
+
+            // 在邻居中找到一跳邻居最小的person
+            std::string smallestOneHop = getSmallestOneHop(cNeighbor,neighbor_counts);
+            if (smallestOneHop == "") { // cNeighbor为空时返回为""，正常情况下循环直接结束其实不会执行
+                break;
+            }
+            // 更新阈值
+            threshhold = calculateSetTwoHopNeighborNumNew(threshhold, smallestOneHop, twoHopResults, two_hop_neighbors);
+
+            // 符合阈值则加入center和两步邻居
+            center.insert(smallestOneHop);
+            twoHopResults.insert(smallestOneHop);
+            twoHopResults.insert(two_hop_neighbors[smallestOneHop].begin(), two_hop_neighbors[smallestOneHop].end());
+            // peopleSet.erase(smallestOneHop); //这里可删可不删，cNeighbor.erase(center);会删掉
+
+            // 更新候选种子集，这里已经在两步邻居里的一步邻居还要做种子，相当于从比较小的扩张
+            cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
+            // 保证做过center的不会再被选为候选种子
+            for (const auto& person : center) {
+                cNeighbor.erase(person);
+            }
+            
+        }
+        
+        // 插入到twoHopSets中待合并
+        twoHopSets.insert(twoHopResults);
+        
+        // 保证做过种子的不会再在其他分片做种子
+        for (const auto& person : center) {
+            peopleSet.erase(person);
+        }
+
+        testCenter+=center.size();
+        testtwohop+=twoHopResults.size();
+    }
+    std::cout<<"all center person num:"<<testCenter<<std::endl;
+    std::cout<<"all twohop person num:"<<testtwohop<<std::endl;
+    
+    // 合并相似度高的两跳person集
+    double merge_threshold = input_similarity;  // 相似度阈值,为0时合为一个分片，为1时把孤立点合在一个分片其他分片不变
+    std::set<std::set<std::string>> mergedSets = merge_high_similarity_sets(twoHopSets, merge_threshold);
+    std::cout << "Number of merged sets: " << mergedSets.size() << std::endl;
+    std::cout << "Number of twoHopSets: " << twoHopSets.size() << std::endl;
+    
+    int part = 0;
+    // 通过合并后的种子集合生成分片
+    std::ofstream tmpfile("./route/person2part.txt");
+    for(auto i: mergedSets) {
+        std::string outPath = "./output/";
+        outPath+=std::to_string(part);
+        std::cout<<"part"<<part<<std::endl;
+        std::cout<<"twohop persons num:"<<i.size()<<std::endl;
+        for(auto it=i.begin();it!=i.end();it++){
+            // outPath += *it;
+            // outPath += "_";
+            tmpfile<<*it<<'|'<<part<<std::endl;
+        }
+        std::set<std::string> comment;
+        std::set<std::string> post;
+        divideInMemory(i, outPath, comment, post, knows, person_hasInterest_tag, person_isLocatedIn_place, person_studyAt_organisation, person_workAt_organisation, forum_hasMember_person_r, forum_hasModerator_person_r, forum_hasModerator_person, comment_hasCreator_person_r, comment_hasCreator_person, post_hasCreator_person_r, post_hasCreator_person, post_hasTag_tag, post_isLocatedIn_place, comment_hasTag_tag, comment_isLocatedIn_place, forum_containerOf_post_r, reply1, reply2, person_0_0, comment_0_0, post_0_0, forum_0_0);
+        std::cout<<"part persons num:"<<i.size()<<std::endl<<std::endl;
+        part++;
+    }
+}
+
+void partitionMultiThreads(int input_threshhold, int input_similarity, std::string inputdir, std::map<std::string, Person> people, std::map<std::string, std::map<std::string,std::string>> knows,std::map<std::string, std::set<std::string>> two_hop_neighbors, std::map<std::string, int> neighbor_counts) {
+
+    // 划分方法3.1 一次load：3.1贪心算法合并person，3.2合并相似度高的两跳person集
+    std::unordered_map<std::string,std::unordered_set<std::string>> person_hasInterest_tag;
+    std::unordered_map<std::string,std::unordered_set<std::string>> person_isLocatedIn_place;
+    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_studyAt_organisation;
+    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_workAt_organisation;
+    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> forum_hasMember_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> forum_hasModerator_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> forum_hasModerator_person;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasCreator_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasCreator_person;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasCreator_person_r;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasCreator_person;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasTag_tag;
+    std::unordered_map<std::string,std::unordered_set<std::string>> post_isLocatedIn_place;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasTag_tag;
+    std::unordered_map<std::string,std::unordered_set<std::string>> comment_isLocatedIn_place;
+    std::unordered_map<std::string,std::unordered_set<std::string>> forum_containerOf_post_r;
+    std::unordered_map<std::string, std::unordered_set<std::string>> reply1;
+    std::unordered_map<std::string, std::unordered_set<std::string>> reply2;
+    std::unordered_map<std::string, std::string> person_0_0;
+    std::unordered_map<std::string, std::string> comment_0_0;
+    std::unordered_map<std::string, std::string> post_0_0;
+    std::unordered_map<std::string, std::string> forum_0_0;
+
+    loadExknows(inputdir,knows, person_hasInterest_tag,person_isLocatedIn_place,person_studyAt_organisation,person_workAt_organisation,forum_hasMember_person_r,forum_hasModerator_person_r,forum_hasModerator_person,comment_hasCreator_person_r,comment_hasCreator_person,post_hasCreator_person_r,post_hasCreator_person,post_hasTag_tag,post_isLocatedIn_place,comment_hasTag_tag,comment_isLocatedIn_place,forum_containerOf_post_r,reply1,reply2,person_0_0,comment_0_0,post_0_0,forum_0_0);
+
+    
+    std::ofstream outfile("./route/message2person.txt");
+    for(auto i:comment_hasCreator_person){
+        for(auto j:comment_hasCreator_person[i.first]){
+            outfile<<i.first<<'|'<<j<<std::endl;
+        }
+    }
+    for(auto i:post_hasCreator_person){
+        for(auto j:post_hasCreator_person[i.first]){
+            outfile<<i.first<<'|'<<j<<std::endl;
+        }
+    }
+    outfile.close();
+
+    std::set<std::set<std::string>> twoHopSets;   // 记录所有分片的两步邻居
+
+    std::set<std::string> peopleSet;    // 记录剩余未做种子分片的person，初始为所有person
+    for(auto it=people.begin();it!=people.end();it++){
+        peopleSet.insert(it->first);
+    }
+
+    int testCenter=0;
+    int testtwohop=0;
+
+    while(peopleSet.size()!=0) {    // 存在未作种子的person
+        // 取seed，即一跳邻居最多的person
+        std::string seed = getBiggestOneHop(peopleSet,neighbor_counts);
+        if(seed=="") continue;
+        
+        //将seed及其两跳邻居加入分片
+        std::set<std::string> twoHopResults;
+        twoHopResults.insert(seed);
+        twoHopResults.insert(two_hop_neighbors[seed].begin(), two_hop_neighbors[seed].end());
+        
+
+        // 将seed加入种子集即center
+        std::set<std::string> center;
+        center.insert(seed);
+        // 获取seed的一跳邻居，即候选种子，不包含已经作为center的person
+        std::set<std::string> cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
+        for (const auto& person : center) {
+            cNeighbor.erase(person);
+        }
+
+        int threshhold = twoHopResults.size();  // 阈值初始为seed的两跳邻居数目
+        while(cNeighbor.size()!=0&&threshhold<input_threshhold) {
+
+            // 在邻居中找到一跳邻居最小的person
+            std::string smallestOneHop = getSmallestOneHop(cNeighbor,neighbor_counts);
+            if (smallestOneHop == "") { // cNeighbor为空时返回为""，正常情况下循环直接结束其实不会执行
+                break;
+            }
+            // 更新阈值
+            threshhold = calculateSetTwoHopNeighborNumNew(threshhold, smallestOneHop, twoHopResults, two_hop_neighbors);
+
+            // 符合阈值则加入center和两步邻居
+            center.insert(smallestOneHop);
+            twoHopResults.insert(smallestOneHop);
+            twoHopResults.insert(two_hop_neighbors[smallestOneHop].begin(), two_hop_neighbors[smallestOneHop].end());
+            // peopleSet.erase(smallestOneHop); //这里可删可不删，cNeighbor.erase(center);会删掉
+
+            // 更新候选种子集，这里已经在两步邻居里的一步邻居还要做种子，相当于从比较小的扩张
+            cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
+            // 保证做过center的不会再被选为候选种子
+            for (const auto& person : center) {
+                cNeighbor.erase(person);
+            }
+            
+        }
+        
+        // 插入到twoHopSets中待合并
+        twoHopSets.insert(twoHopResults);
+        
+        // 保证做过种子的不会再在其他分片做种子
+        for (const auto& person : center) {
+            peopleSet.erase(person);
+        }
+
+        testCenter+=center.size();
+        testtwohop+=twoHopResults.size();
+    }
+    std::cout<<"all center person num:"<<testCenter<<std::endl;
+    std::cout<<"all twohop person num:"<<testtwohop<<std::endl;
+    
+    // 合并相似度高的两跳person集
+    double merge_threshold = input_similarity;  // 相似度阈值,为0时合为一个分片，为1时把孤立点合在一个分片其他分片不变
+    std::set<std::set<std::string>> mergedSets = merge_high_similarity_sets(twoHopSets, merge_threshold);
+    std::cout << "Number of merged sets: " << mergedSets.size() << std::endl;
+    std::cout << "Number of twoHopSets: " << twoHopSets.size() << std::endl;
+    
+    int part = 0;
+    // 通过合并后的种子集合生成分片
+    std::ofstream tmpfile("./route/person2part.txt");
+    for(auto i: mergedSets) {
+        std::string outPath = "./output/";
+        outPath+=std::to_string(part);
+        std::cout<<"part"<<part<<std::endl;
+        std::cout<<"twohop persons num:"<<i.size()<<std::endl;
+        for(auto it=i.begin();it!=i.end();it++){
+            // outPath += *it;
+            // outPath += "_";
+            tmpfile<<*it<<'|'<<part<<std::endl;
+        }
+        std::set<std::string> comment;
+        std::set<std::string> post;
+        divideInMemory(i, outPath, comment, post, knows, person_hasInterest_tag, person_isLocatedIn_place, person_studyAt_organisation, person_workAt_organisation, forum_hasMember_person_r, forum_hasModerator_person_r, forum_hasModerator_person, comment_hasCreator_person_r, comment_hasCreator_person, post_hasCreator_person_r, post_hasCreator_person, post_hasTag_tag, post_isLocatedIn_place, comment_hasTag_tag, comment_isLocatedIn_place, forum_containerOf_post_r, reply1, reply2, person_0_0, comment_0_0, post_0_0, forum_0_0);
+        std::cout<<"part persons num:"<<i.size()<<std::endl<<std::endl;
+        part++;
+    }
+}
+
 int main() {
     // 获取开始时间点
     auto start = std::chrono::high_resolution_clock::now();
 
-    std::ifstream file("./input/social_network-csv_composite-longdateformatter-sf0.1/dynamic/person_0_0.csv");
+    std::string initialDir = "/home/huzheyuan/dev/gpstore_distributed/input/social_network-csv_composite-longdateformatter-sf0.1/dynamic/";
+    // initialDir = "/home/huzheyuan/dev/divide/output/10995116278436";
+
+    // Read data from person_0_0.csv
+    std::ifstream file(initialDir+"person_0_0.csv");
     std::string line;
     std::map<std::string, Person> people;
     std::map<std::string, std::map<std::string,std::string>> knows;
-
-    // Skip header line
-    // std::getline(file, line);
 
     while (std::getline(file, line)) {
         std::stringstream ss(line);
@@ -1243,18 +2759,9 @@ int main() {
     file.close();
     std::cout<<"all Person num:"<<people.size()<<std::endl;
 
-    // special
-    // 
-
-    // Print information for each person
-    // for (const auto& p : people) {
-    //     p.printInfo();
-    // }
-
 
     // Read data from person_knows_person_0_0.csv
-    std::ifstream file2("./input/social_network-csv_composite-longdateformatter-sf0.1/dynamic/person_knows_person_0_0.csv");
-    // std::getline(file2, line); // Skip header line
+    std::ifstream file2(initialDir+"person_knows_person_0_0.csv");
 
     while (std::getline(file2, line)) {
         std::stringstream ss(line);
@@ -1304,201 +2811,52 @@ int main() {
     }
     average_two_hop_neighbor_count /= neighbor_counts.size();
     std::cout << "Average number of two-hop neighbors: " << average_two_hop_neighbor_count << std::endl;
+
+    // 统计每个person的两步邻居数到person_twohop.csv
+    // std::ofstream person_twohop("person_twohop.csv");
+    // person_twohop<<"person_id,2-hop_neighbors_num"<<std::endl;
+    // for(auto i:two_hop_neighbors){
+    //     i.second.insert(i.first);
+    //     person_twohop<<i.first<<','<<i.second.size()<<std::endl;
+    // }
+    // person_twohop.close();
+
+    // // 统计每个person的两步邻居与其他person的两步邻居的相似度到person_part_similarities.csv
+    // std::ofstream person_part_similarities("person_part_similarities.csv");
+    // person_part_similarities<<"person_id,part,part_similarities"<<std::endl;
+    // // 转换为vector
+    // std::vector<std::pair<std::string, std::set<std::string>>> convertedVector;
+    // for (const auto& pair : two_hop_neighbors) {
+    //     convertedVector.push_back(pair);
+    // }
+    // for(int i=0;i<convertedVector.size();i++){
+    //     std::string personID = convertedVector[i].first;
+    //     std::set<std::string> twoHopResults = convertedVector[i].second;
+    //     twoHopResults.insert(personID);
+    //     person_part_similarities<<personID<<','<<i;
+    //     for(int j=0;j<convertedVector.size();j++){
+    //         std::set<std::string> twoHopResults2 = convertedVector[j].second;
+    //         twoHopResults2.insert(convertedVector[j].first);
+    //         std::set<std::string> intersection;
+    //         std::set_intersection(twoHopResults.begin(), twoHopResults.end(), twoHopResults2.begin(), twoHopResults2.end(), std::inserter(intersection, intersection.begin()));
+    //         double similarity = 0;
+    //         if(twoHopResults.size()!=0||twoHopResults2.size()!=0) similarity = (double)intersection.size() / (twoHopResults.size() + twoHopResults2.size() - intersection.size());
+    //         else similarity = 1;
+    //         person_part_similarities<<','<<similarity;
+    //     }
+    //     person_part_similarities<<std::endl;
+    // }
+    // person_part_similarities.close();
     
     // 划分方法1：每个person做中心person
-    int part = 0;
-    for(auto it=people.begin();it!=people.end();it++){
-        std::cout<<part<<std::endl;
-        // if(part>2) break;
-        
-        std::string givenPersonID = it->first; // Example ID
-        std::set<std::string> twoHopResults;
-
-        // getKnows(givenPersonID, knows, twoHopResults);
-        twoHopResults = two_hop_neighbors[givenPersonID];
-        twoHopResults.insert(givenPersonID);
-
-        std::cout<<"center PersonID:"<<givenPersonID<<std::endl;
-
-        std::cout<<"twohop persons num:"<<twoHopResults.size()<<std::endl;
-        // 邻居最小一跳/二跳，基本上是一致的
-        std::set<std::string> center;
-        center.insert(givenPersonID);
-        std::set<std::string> cNeighbor = getKnowsNeighbor(center,knows);
-
-        std::set<std::string> comment;
-        std::set<std::string> post;
-
-        getDivide(twoHopResults, "./input/social_network-csv_composite-longdateformatter-sf0.1/dynamic/", "./output/"+givenPersonID+"/", comment, post, knows);
-        
-        std::cout<<"part persons num:"<<twoHopResults.size()<<std::endl<<std::endl;
-        part++;
-    }
-
-    // 划分方法2：贪心算法合并person
-    // int part = 0;
-    // std::set<std::string> peopleSet;
-    // for(auto it=people.begin();it!=people.end();it++){
-    //     peopleSet.insert(it->first);
-    // }
-    // std::ofstream tmpfile("./output/partTwoHopPersons.txt");
+    // partition1("/home/huzheyuan/dev/gpstore_distributed/input/social_network-csv_composite-longdateformatter-sf0.1/dynamic/", people, knows, two_hop_neighbors);
     
-    // while(peopleSet.size()!=0) {
-    //     std::string seed = getBiggestOneHop(peopleSet,neighbor_counts);
-    //     if(seed=="") continue;
-    //     // std::cout<<seed<<std::endl;
-    //     std::set<std::string> twoHopResults;
-    //     twoHopResults.insert(seed);
-    //     twoHopResults.insert(two_hop_neighbors[seed].begin(), two_hop_neighbors[seed].end());
-    //     // std::cout<<"twohopsize:"<<twoHopResults.size()<<std::endl;
-    //     std::set<std::string> center;
-    //     center.insert(seed);
-    //     std::set<std::string> cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
-    //     // int threshhold = calculateSetTwoHopNeighborNum(center, two_hop_neighbor_counts);
-    //     int threshhold = twoHopResults.size();
-    //     for (const auto& person : center) {
-    //         cNeighbor.erase(person);
-    //     }
-    //     // while(threshhold<100000&&cNeighbor.size()!=0) {
-    //     while(cNeighbor.size()!=0) {
-    //         // std::cout<<"cNeighborsize1:"<<cNeighbor.size()<<std::endl;
-    //         std::string smallestOneHop = getSmallestOneHop(cNeighbor,neighbor_counts);
-    //         if(smallestOneHop=="") break;
-    //         threshhold = calculateSetTwoHopNeighborNumNew(threshhold, smallestOneHop, twoHopResults, two_hop_neighbors); 
-    //         if(threshhold>1700) break;
-    //         // std::cout<<"smallest onehop:"<<smallestOneHop<<std::endl;
-    //         center.insert(smallestOneHop);
-    //         twoHopResults.insert(smallestOneHop);
-    //         twoHopResults.insert(two_hop_neighbors[smallestOneHop].begin(), two_hop_neighbors[smallestOneHop].end());
-            
-    //         // threshhold = calculateSetTwoHopNeighborNum(center, two_hop_neighbor_counts); 
-            
-    //         // std::cout<<"threshhold:"<<threshhold<<std::endl;
-    //         // 获取center的邻居
-    //         cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
-    //         // std::cout<<"cNeighborsize:"<<cNeighbor.size()<<std::endl;
-    //         for (const auto& person : center) {
-    //             cNeighbor.erase(person);
-    //         }
-            
-    //     }
-    //     std::cout<<"center persons num:"<<center.size()<<std::endl;
-    //     std::cout<<"threshhold:"<<threshhold<<std::endl;
-    //     std::cout<<"twohop persons num:"<<twoHopResults.size()<<std::endl;
-    //     std::string outPath = "./output/";
-    //     outPath+=std::to_string(part);
-    //     for(auto it=center.begin();it!=center.end();it++){
-    //         tmpfile<<part<<' '<<*it<<std::endl;
-    //     }
-
-    //     std::set<std::string> comment;
-    //     std::set<std::string> post;
-    //     getDivide(twoHopResults, "./input/social_network-csv_composite-longdateformatter-sf0.1/dynamic/", outPath, comment, post, knows);
-        
-    //     std::cout<<"part persons num:"<<twoHopResults.size()<<std::endl<<std::endl;
-        
-    //     part++;
-    //     std::cout<<"part:"<<part<<std::endl;
-
-    //     // peopleSet.erase(center.begin(),center.end());
-    //     for (const auto& person : center) {
-    //         peopleSet.erase(person);
-    //     }
-    // }
-
-    // 划分方法3：3.1贪心算法合并person，3.2合并相似度高的两跳person集
-    // std::set<std::set<std::string>> twoHopSets;
-    // std::set<std::string> peopleSet;
-    // for(auto it=people.begin();it!=people.end();it++){
-    //     peopleSet.insert(it->first);
-    // }
-    // int testCenter=0;
-    // int testtwohop=0;
-    // while(peopleSet.size()!=0) {
-    //     // std::string seed = getSmallestOneHop(peopleSet,neighbor_counts);
-    //     std::string seed = getBiggestOneHop(peopleSet,neighbor_counts);
-    //     if(seed=="") continue;
-    //     // std::cout<<seed<<std::endl;
-    //     std::set<std::string> twoHopResults;
-    //     twoHopResults.insert(seed);
-    //     twoHopResults.insert(two_hop_neighbors[seed].begin(), two_hop_neighbors[seed].end());
-    //     // std::cout<<"twohopsize:"<<twoHopResults.size()<<std::endl;
-    //     std::set<std::string> center;
-    //     center.insert(seed);
-    //     std::set<std::string> cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
-    //     // int threshhold = calculateSetTwoHopNeighborNum(center, two_hop_neighbor_counts);
-    //     int threshhold = twoHopResults.size();
-    //     for (const auto& person : center) {
-    //         cNeighbor.erase(person);
-    //     }
-    //     while(cNeighbor.size()!=0) {
-    //         // std::cout<<"cNeighborsize1:"<<cNeighbor.size()<<std::endl;
-    //         std::string smallestOneHop = getSmallestOneHop(cNeighbor,neighbor_counts);
-    //         if (smallestOneHop == "") {
-    //             break;
-    //         }
-
-    //         threshhold = calculateSetTwoHopNeighborNumNew(threshhold, smallestOneHop, twoHopResults, two_hop_neighbors);
-    //         if(threshhold>110) break;
-
-    //         // std::cout<<"smallest onehop:"<<smallestOneHop<<std::endl;
-    //         center.insert(smallestOneHop);
-    //         twoHopResults.insert(smallestOneHop);
-    //         twoHopResults.insert(two_hop_neighbors[smallestOneHop].begin(), two_hop_neighbors[smallestOneHop].end());
-            
-    //         // threshhold = calculateSetTwoHopNeighborNum(center, two_hop_neighbor_counts); 
-    //         // std::cout<<"threshhold:"<<threshhold<<std::endl;
-    //         // 获取center的邻居
-    //         cNeighbor = getKnowsNeighbor1(center,knows,peopleSet);
-    //         // std::cout<<"cNeighborsize:"<<cNeighbor.size()<<std::endl;
-    //         for (const auto& person : center) {
-    //             cNeighbor.erase(person);
-    //         }
-            
-    //     }
-        
-    //     // 插入到twoHopSets中待合并
-    //     twoHopSets.insert(twoHopResults);
-        
-
-    //     for (const auto& person : center) {
-    //         peopleSet.erase(person);
-    //     }
-
-    //     testCenter+=center.size();
-    //     testtwohop+=twoHopResults.size();
-    // }
-    // std::cout<<"all center person num:"<<testCenter<<std::endl;
-    // std::cout<<"all twohop person num:"<<testtwohop<<std::endl;
+    // 划分方法1.1：一次load
+    // partition1_1("/home/huzheyuan/dev/gpstore_distributed/input/social_network-csv_composite-longdateformatter-sf0.1/dynamic/", people, knows, two_hop_neighbors);
     
-    // // 合并相似度高的两跳person集
-    // double merge_threshold = 0.1;  // 相似度阈值
-    // std::set<std::set<std::string>> mergedSets = merge_high_similarity_sets(twoHopSets, merge_threshold);
-    // std::cout << "Number of merged sets: " << mergedSets.size() << std::endl;
-    // std::cout << "Number of twoHopSets: " << twoHopSets.size() << std::endl;
+    // partition2_1(1200, "/home/huzheyuan/dev/gpstore_distributed/input/social_network-csv_composite-longdateformatter-sf0.1/dynamic/", people, knows, two_hop_neighbors, neighbor_counts);
     
-    // /*twoHopSets.insert(peopleSet);
-    // std::set<std::set<std::string>> mergedSets = twoHopSets;*/
-    
-    // int part = 0;
-    // // 通过合并后的种子集合生成分片
-    // std::ofstream tmpfile("./output/partTwoHopPersons.txt");
-    // for(auto i: mergedSets) {
-    //     std::string outPath = "./output/";
-    //     outPath+=std::to_string(part);
-    //     std::cout<<"part"<<part<<std::endl;
-    //     std::cout<<"twohop persons num:"<<i.size()<<std::endl;
-    //     for(auto it=i.begin();it!=i.end();it++){
-    //         // outPath += *it;
-    //         // outPath += "_";
-    //         tmpfile<<part<<' '<<*it<<std::endl;
-    //     }
-    //     std::set<std::string> comment;
-    //     std::set<std::string> post;
-    //     getDivide(i, "./input/social_network-csv_composite-longdateformatter-sf0.1/dynamic/", outPath, comment, post, knows);
-    //     std::cout<<"part persons num:"<<i.size()<<std::endl<<std::endl;
-    //     part++;
-    // }
+    partition3_1(1100, 0.99, "/home/huzheyuan/dev/gpstore_distributed/input/social_network-csv_composite-longdateformatter-sf0.1/dynamic/", people, knows, two_hop_neighbors, neighbor_counts);
 
     // 获取结束时间点
     auto end = std::chrono::high_resolution_clock::now();
