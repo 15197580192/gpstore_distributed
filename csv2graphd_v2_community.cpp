@@ -14,11 +14,52 @@
 #include <mutex>
 #include <queue>
 #include <condition_variable>
+#include <sys/resource.h>
+#include <unistd.h>
 
 #include <sys/stat.h>
 
 using namespace std;
 // std::vector<std::thread> threads; // 用于存储线程的向量，其实没用
+
+void printMemoryUsage() {
+    struct rusage usage;
+    if (getrusage(RUSAGE_SELF, &usage) == 0) {
+        double memoryUsageMB = usage.ru_maxrss / 1024.0; // 将 KB 转换为 MB
+        std::cout << "Memory Usage: " << memoryUsageMB << " MB" << std::endl;
+    } else {
+        std::cerr << "Failed to get memory usage" << std::endl;
+    }
+}
+
+void GetCurrentProcessMemoryUsage() {
+    std::ifstream statusFile("/proc/self/status");
+    std::string line;
+
+    if (!statusFile.is_open()) {
+        std::cerr << "Could not open /proc/self/status" << std::endl;
+        return;
+    }
+
+    while (std::getline(statusFile, line)) {
+        if (line.find("VmSize:") == 0 || line.find("VmRSS:") == 0) {
+            // 提取内存大小并转换为 MB
+            size_t colonPos = line.find(':');
+            size_t sizeStart = colonPos + 1;
+            size_t sizeEnd = line.find('k', sizeStart);
+            std::string sizeStr = line.substr(sizeStart, sizeEnd - sizeStart);
+            size_t memorySizeKB = std::stoul(sizeStr);
+            double memorySizeMB = memorySizeKB / 1024.0; // 转换为 MB
+
+            // 输出结果
+            if (line.find("VmSize:") == 0) {
+                std::cout << "Virtual Memory Size: " << memorySizeMB << " MB" << std::endl;
+            } else if (line.find("VmRSS:") == 0) {
+                std::cout << "Resident Set Size: (Actual memory)" << memorySizeMB << " MB" << std::endl;
+            }
+        }
+    }
+}
 
 
 class Person {
@@ -2941,18 +2982,50 @@ void partitionMultiThreads(int input_threshhold, int input_similarity, std::stri
     }
 }
 
+// 运行长度编码压缩函数
+std::string compressString(const std::string& str) {
+    std::string compressed;
+    int count = 1;
+
+    for (size_t i = 1; i <= str.length(); ++i) {
+        if (i < str.length() && str[i] == str[i - 1]) {
+            ++count;
+        } else {
+            compressed += str[i - 1];
+            compressed += std::to_string(count);
+            count = 1;
+        }
+    }
+
+    return compressed.length() < str.length() ? compressed : str;
+}
+
+// 运行长度编码解压缩函数
+std::string decompressString(const std::string& str) {
+    std::string decompressed;
+    for (size_t i = 0; i < str.length(); ++i) {
+        char ch = str[i];
+        std::string countStr;
+        while (i + 1 < str.length() && isdigit(str[i + 1])) {
+            countStr += str[++i];
+        }
+        int count = std::stoi(countStr);
+        decompressed.append(count, ch);
+    }
+    return decompressed;
+}
+
 void loadAll(std::string filename,
-                std::unordered_map<std::string, std::string>& person,
                 std::unordered_map<std::string,std::unordered_set<std::string>>& person_hasInterest_tag,
                 std::unordered_map<std::string,std::unordered_set<std::string>>& person_isLocatedIn_place,
                 std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& person_studyAt_organisation,
                 std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& person_workAt_organisation,
                 std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& person_likes_comment_r,
                 std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& person_likes_post_r,
-                std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& forum_hasMember_person_r,
-                std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& forum_hasMember_person, //new
-                std::unordered_map<std::string,std::unordered_set<std::string>>& forum_hasModerator_person_r,
-                std::unordered_map<std::string,std::string>& forum_hasModerator_person,
+                // std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& forum_hasMember_person_r,
+                // std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& forum_hasMember_person, //new
+                // std::unordered_map<std::string,std::unordered_set<std::string>>& forum_hasModerator_person_r,
+                // std::unordered_map<std::string,std::string>& forum_hasModerator_person,
                 std::unordered_map<std::string,std::unordered_set<std::string>>& comment_hasCreator_person_r,
                 std::unordered_map<std::string,std::string>& comment_hasCreator_person,
                 std::unordered_map<std::string,std::unordered_set<std::string>>& post_hasCreator_person_r,
@@ -2978,28 +3051,28 @@ void loadAll(std::string filename,
 
     std::cout<<"inputdir:"<<directory<<std::endl;
 
-    std::ifstream file(directory+"person_0_0.csv");
-    std::string line;
+    // std::ifstream file(directory+"person_0_0.csv");
+    // std::string line;
 
-    while (std::getline(file, line)) {
-        std::stringstream ss(line);
-        std::string item;
-        std::vector<std::string> items;
+    // while (std::getline(file, line)) {
+    //     std::stringstream ss(line);
+    //     std::string item;
+    //     std::vector<std::string> items;
 
-        while (std::getline(ss, item, '|')) {
-            items.push_back(item);
-        }
+    //     while (std::getline(ss, item, '|')) {
+    //         items.push_back(item);
+    //     }
 
-        if (items.size() != 10) {
-            std::cerr << "Invalid line: " << line << std::endl;
-            continue;
-        }
-        person[items[0]]=line;
-    }
+    //     if (items.size() != 10) {
+    //         std::cerr << "Invalid line: " << line << std::endl;
+    //         continue;
+    //     }
+    //     person[items[0]]=line;
+    // }
     
     // person_hasInterest_tag
-    
-    file.open(directory+"/person_hasInterest_tag_0_0.csv");
+    std::ifstream file(directory+"/person_hasInterest_tag_0_0.csv");
+    std::string line;
 
     // std::getline(file, line); // Skip header line
     while (std::getline(file, line)) {
@@ -3131,51 +3204,51 @@ void loadAll(std::string filename,
     file.close();
     
     
-    // forum_hasMember_person
+    // // forum_hasMember_person
     
-    file.open(directory+"/forum_hasMember_person_0_0.csv");
+    // file.open(directory+"/forum_hasMember_person_0_0.csv");
     
-    // std::getline(file, line); // Skip header line
-    while (std::getline(file, line)) {
-        std::stringstream ss(line);
-        std::string item;
-        std::vector<std::string> items;
+    // // std::getline(file, line); // Skip header line
+    // while (std::getline(file, line)) {
+    //     std::stringstream ss(line);
+    //     std::string item;
+    //     std::vector<std::string> items;
 
-        while (std::getline(ss, item, '|')) {
-            items.push_back(item);
-        }
+    //     while (std::getline(ss, item, '|')) {
+    //         items.push_back(item);
+    //     }
 
-        if (items.size() != 3) {
-            std::cerr << "Invalid line: " << line << std::endl;
-            continue;
-        }
-        forum_hasMember_person_r[items[1]][items[0]] = items[2];
-        forum_hasMember_person[items[0]][items[1]] = items[2];
-    }
-    file.close();
+    //     if (items.size() != 3) {
+    //         std::cerr << "Invalid line: " << line << std::endl;
+    //         continue;
+    //     }
+    //     forum_hasMember_person_r[items[1]][items[0]] = items[2];
+    //     forum_hasMember_person[items[0]][items[1]] = items[2];
+    // }
+    // file.close();
     
-    // forum_hasModerator_person
+    // // forum_hasModerator_person
 
-    file.open(directory+"/forum_hasModerator_person_0_0.csv");
+    // file.open(directory+"/forum_hasModerator_person_0_0.csv");
     
-    // std::getline(file, line); // Skip header line
-    while (std::getline(file, line)) {
-        std::stringstream ss(line);
-        std::string item;
-        std::vector<std::string> items;
+    // // std::getline(file, line); // Skip header line
+    // while (std::getline(file, line)) {
+    //     std::stringstream ss(line);
+    //     std::string item;
+    //     std::vector<std::string> items;
 
-        while (std::getline(ss, item, '|')) {
-            items.push_back(item);
-        }
+    //     while (std::getline(ss, item, '|')) {
+    //         items.push_back(item);
+    //     }
 
-        if (items.size() != 2) {
-            std::cerr << "Invalid line: " << line << std::endl;
-            continue;
-        }
-        forum_hasModerator_person_r[items[1]].insert(items[0]);
-        forum_hasModerator_person[items[0]]=items[1];
-    }
-    file.close();
+    //     if (items.size() != 2) {
+    //         std::cerr << "Invalid line: " << line << std::endl;
+    //         continue;
+    //     }
+    //     forum_hasModerator_person_r[items[1]].insert(items[0]);
+    //     forum_hasModerator_person[items[0]]=items[1];
+    // }
+    // file.close();
 
     // comment hasCreator person
     file.open(directory+"/comment_hasCreator_person_0_0.csv");
@@ -3426,7 +3499,7 @@ void loadAll(std::string filename,
         while (std::getline(ss, item, '|')) {
             items.push_back(item);
         }
-        comment_0_0[items[0]] = line;
+        comment_0_0[items[0]] = compressString(line);
     }
     file.close();
 
@@ -3442,7 +3515,7 @@ void loadAll(std::string filename,
         while (std::getline(ss, item, '|')) {
             items.push_back(item);
         }
-        post_0_0[items[0]] = line;
+        post_0_0[items[0]] = compressString(line);
     }
     file.close();
     std::cout<<"load finished"<<std::endl;
@@ -3709,18 +3782,337 @@ void dfs_c(std::string current, std::unordered_map<std::string, std::unordered_s
     }
 }
 
+void loadMessageEdge(std::string filename,std::unordered_map<std::string,std::string> &person_0_0, 
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_hasCreator_person_r, 
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &post_hasCreator_person_r,
+                    std::unordered_map<std::string,std::string> &comment_hasCreator_person, 
+                    std::unordered_map<std::string,std::string> &post_hasCreator_person,
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &forum_containerOf_post_r,
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_comment_r,
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_post_r,
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_comment,
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_post) {
+     // 获取文件夹路径
+    // std::string directory = filename.substr(0, filename.find_last_of('/'));
+    std::string directory = filename;
+    std::string line;
+
+    std::cout<<"inputdir:"<<directory<<std::endl;
+    
+
+    // comment hasCreator person
+    std::ifstream file(directory+"/comment_hasCreator_person_0_0.csv");
+
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        comment_hasCreator_person_r[items[1]].insert(items[0]);
+        comment_hasCreator_person[items[0]]=items[1];
+    }
+    file.close();
+
+    // post hasCreator person
+    file.open(directory+"/post_hasCreator_person_0_0.csv");
+
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        post_hasCreator_person_r[items[1]].insert(items[0]);
+        post_hasCreator_person[items[0]]=items[1];
+    }
+    file.close();
+
+    file.open(directory+"/comment_replyOf_comment_0_0.csv");
+
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        comment_replyOf_comment[items[0]].insert(items[1]);
+        comment_replyOf_comment_r[items[1]].insert(items[0]);
+        
+    }
+
+    file.close();
+
+    file.open(directory+"/comment_replyOf_post_0_0.csv");
+
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        comment_replyOf_post[items[0]].insert(items[1]);
+        comment_replyOf_post_r[items[1]].insert(items[0]);
+        
+    }
+
+    file.close();
+    
+	// forum_containerOf_post
+    file.open(directory+"/forum_containerOf_post_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        forum_containerOf_post_r[items[1]].insert(items[0]);
+    }
+    file.close();
+
+	// person
+    file.open(directory+"/person_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+        person_0_0[items[0]] = line;
+    }
+    file.close();
+
+    std::cout<<"load finished"<<std::endl;
+
+}
+
+void loadMessageProperty(std::string filename, 
+                 std::unordered_map<std::string, std::string>& comment_0_0, 
+                 std::unordered_map<std::string, std::string>& post_0_0,
+                 std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& person_likes_comment_r,
+                 std::unordered_map<std::string,std::unordered_map<std::string,std::string>>& person_likes_post_r,
+                 std::unordered_map<std::string,std::unordered_set<std::string>>& post_hasTag_tag,
+                 std::unordered_map<std::string,std::unordered_set<std::string>>& post_isLocatedIn_place,
+                 std::unordered_map<std::string,std::unordered_set<std::string>>& comment_hasTag_tag,
+                 std::unordered_map<std::string,std::unordered_set<std::string>>& comment_isLocatedIn_place
+
+                 ) {
+    std::string directory = filename;
+    std::string line;
+	// comment
+    std::ifstream file(directory+"/comment_0_0.csv");
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+        comment_0_0[items[0]] = line;
+    }
+    file.close();
+
+	// post
+    file.open(directory+"/post_0_0.csv");
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+        post_0_0[items[0]] = line;
+    }
+    file.close();
+    std::cout<<"load finished"<<std::endl;
+
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 3) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        person_likes_comment_r[items[1]][items[0]] = items[2];
+    }
+    file.close();
+
+    // person_likes_post
+    
+    file.open(directory+"/person_likes_post_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 3) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        person_likes_post_r[items[1]][items[0]] = items[2];
+    }
+    file.close();
+
+    // post_hasTag_tag
+    file.open(directory+"/post_hasTag_tag_0_0.csv");
+    // std::set <std::string> newPerson;
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        
+        post_hasTag_tag[items[0]].insert(items[1]);
+    }
+    file.close();
+
+	// post_isLocatedIn_place
+    file.open(directory+"/post_isLocatedIn_place_0_0.csv");
+    // std::set <std::string> newPerson;
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        
+        post_isLocatedIn_place[items[0]].insert(items[1]);
+    }
+    file.close();
+	
+	
+	// comment_hasTag_tag
+    file.open(directory+"/comment_hasTag_tag_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        
+        comment_hasTag_tag[items[0]].insert(items[1]);
+    }
+    file.close();
+    
+	// comment_isLocatedIn_place
+    file.open(directory+"/comment_isLocatedIn_place_0_0.csv");
+    
+    // std::getline(file, line); // Skip header line
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> items;
+
+        while (std::getline(ss, item, '|')) {
+            items.push_back(item);
+        }
+
+        if (items.size() != 2) {
+            std::cerr << "Invalid line: " << line << std::endl;
+            continue;
+        }
+        comment_isLocatedIn_place[items[0]].insert(items[1]);
+    }
+    file.close();
+  
+}
+
 // 初始化louvain算法输入带权图
-void createLGraph(std::unordered_map<std::string, std::string> person_0_0,
-                    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasCreator_person_r, 
-                    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasCreator_person_r,
-                    std::unordered_map<std::string,std::string> comment_hasCreator_person, 
-                    std::unordered_map<std::string,std::string> post_hasCreator_person,
-                    std::unordered_map<std::string,std::unordered_set<std::string>> comment_replyOf_comment,
-                    std::unordered_map<std::string,std::unordered_set<std::string>> comment_replyOf_post,
+void createLGraph(std::unordered_map<std::string, std::string> &person_0_0,
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_hasCreator_person_r, 
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &post_hasCreator_person_r,
+                    std::unordered_map<std::string,std::string> &comment_hasCreator_person, 
+                    std::unordered_map<std::string,std::string> &post_hasCreator_person,
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_comment,
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_post,
                     Graph &g) {
     auto start = std::chrono::high_resolution_clock::now();
     // 便于计算先合并comment和post的replyOf
-    std::unordered_map<std::string,std::unordered_set<std::string>> replySet = merge_maps(comment_replyOf_comment,comment_replyOf_post);
+    // std::unordered_map<std::string,std::unordered_set<std::string>> replySet = merge_maps(comment_replyOf_comment,comment_replyOf_post);
     // 处理每两个person点对
     for(auto i:person_0_0) {
         // 初始化person i的comment集
@@ -3749,23 +4141,6 @@ void createLGraph(std::unordered_map<std::string, std::string> person_0_0,
                 g.addEdge(i.first,to,0.5);
             }
         }
-        // i_reply.erase(i.first); // 去掉自己
-        // for(auto j:person_0_0) {
-        //     // 初始化person j的comment集
-        //     std::unordered_set<std::string> jSet = comment_hasCreator_person_r[j.first];
-        //     jSet.insert(post_hasCreator_person_r[j.first].begin(),post_hasCreator_person_r[j.first].end());
-        //     if(i.first!=j.first) {
-        //         // 遍历i集合，如果i的回复边在j集合中，i到j的权重+0.5
-        //         for(auto k:i_reply) {
-        //             if(jSet.find(k)!=jSet.end()) {
-        //                 g.addEdge(i.first,j.first,0.5);
-        //             }
-        //         }
-        //     }
-        //     //  else {
-        //     //     g.addEdge(i.first,j.first,0);
-        //     // }
-        // }
     }
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
@@ -3774,33 +4149,21 @@ void createLGraph(std::unordered_map<std::string, std::string> person_0_0,
     
 }
 
-
-void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::string,std::string> person_0_0, 
-                                                    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_likes_comment_r,
-                                                    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_likes_post_r,
-                                                    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasCreator_person_r, 
-                                                    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasCreator_person_r,
-                                                    std::unordered_map<std::string,std::string> comment_hasCreator_person, 
-                                                    std::unordered_map<std::string,std::string> post_hasCreator_person,
-                                                    std::unordered_map<std::string,std::unordered_set<std::string>> post_containerOf_forum,
-                                                    std::unordered_map<std::string,std::string> comment_0_0,
-                                                    std::unordered_map<std::string,std::string> post_0_0,
-                                                    std::unordered_map<std::string,std::string> forum_0_0,
-                                                    std::unordered_map<std::string,std::unordered_set<std::string>> comment_replyOf_comment_r,
-                                                    std::unordered_map<std::string,std::unordered_set<std::string>> comment_replyOf_post_r,
-                                                    std::unordered_map<std::string,std::unordered_set<std::string>> comment_replyOf_comment,
-                                                    std::unordered_map<std::string,std::unordered_set<std::string>> comment_replyOf_post,
-                                                    std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasTag_tag,
-                                                    std::unordered_map<std::string,std::unordered_set<std::string>> post_hasTag_tag,
-                                                    std::unordered_map<std::string,std::unordered_set<std::string>> comment_isLocatedIn_place,
-                                                    std::unordered_map<std::string,std::unordered_set<std::string>> post_isLocatedIn_place) {
-    // 构建带权图
-    Graph g;
-    createLGraph(person_0_0,comment_hasCreator_person_r,post_hasCreator_person_r,comment_hasCreator_person,post_hasCreator_person,comment_replyOf_comment,comment_replyOf_post,g);
+void divideCommunity(int part,int messageNum,Graph& g,
+                    std::unordered_map<std::string,std::string> &person_0_0, 
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_hasCreator_person_r, 
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &post_hasCreator_person_r,
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_comment,
+                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_post,
+                    unordered_map<string, std::unordered_set<std::string>>& communitiesSet,
+                    std::vector<std::unordered_set<std::string>> &commentSetArray,
+                    std::vector<std::unordered_set<std::string>> &postSetArray
+                  ) {
+    std::cout<<"divide community start"<<std::endl;
+    // GetCurrentProcessMemoryUsage();
     auto start = std::chrono::high_resolution_clock::now();
-    std::unordered_map<std::string,std::unordered_set<std::string>> person_message_set = merge_maps(comment_hasCreator_person_r, post_hasCreator_person_r);
     std::unordered_set<std::string> communityMessageSet; //存储当前社区中person发布的message，用于判断阈值
-    unordered_map<string, std::unordered_set<std::string>> communitiesSet;  //存储每个社区中person
+    // unordered_map<string, std::unordered_set<std::string>> communitiesSet;  //存储每个社区中person
     std::unordered_set<std::string> pPerson;  //存储已分配到社区中person
     int communityNo=0;
     int thresh = 0;
@@ -3817,7 +4180,9 @@ void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::st
         string center = it->first;
         pPerson.insert(center);
         communitiesSet[to_string(communityNo)].insert(center);
-        communityMessageSet.insert(person_message_set[center].begin(),person_message_set[center].end());
+        // communityMessageSet.insert(person_message_set[center].begin(),person_message_set[center].end());
+        communityMessageSet.insert(comment_hasCreator_person_r[center].begin(),comment_hasCreator_person_r[center].end());
+        communityMessageSet.insert(post_hasCreator_person_r[center].begin(),post_hasCreator_person_r[center].end());
         thresh = communityMessageSet.size();
         if(thresh>=(messageNum/part)) {
             std::cout<<"divide community phase1 finished,community size:"<<communitiesSet[to_string(communityNo)].size()<<std::endl;
@@ -3843,7 +4208,9 @@ void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::st
             }
             pPerson.insert(tmp);
             communitiesSet[to_string(communityNo)].insert(tmp);
-            communityMessageSet.insert(person_message_set[tmp].begin(),person_message_set[tmp].end());
+            // communityMessageSet.insert(person_message_set[tmp].begin(),person_message_set[tmp].end());
+            communityMessageSet.insert(comment_hasCreator_person_r[tmp].begin(),comment_hasCreator_person_r[tmp].end());
+            communityMessageSet.insert(post_hasCreator_person_r[tmp].begin(),post_hasCreator_person_r[tmp].end());
             thresh = communityMessageSet.size();
             if(thresh>=(messageNum/part)) {
                 std::cout<<"divide community phase1 finished,community size:"<<communitiesSet[to_string(communityNo)].size()<<std::endl;
@@ -3866,7 +4233,489 @@ void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::st
             string cur = i.first;
             pPerson.insert(cur);
             communitiesSet[to_string(communityNo)].insert(cur);
-            communityMessageSet.insert(person_message_set[cur].begin(),person_message_set[cur].end());
+
+            communityMessageSet.insert(comment_hasCreator_person_r[cur].begin(),comment_hasCreator_person_r[cur].end());
+            communityMessageSet.insert(post_hasCreator_person_r[cur].begin(),post_hasCreator_person_r[cur].end());
+            thresh = communityMessageSet.size();
+            if(thresh>=(messageNum/part)) {
+                std::cout<<"divide community phase2 finished,community size:"<<communitiesSet[to_string(communityNo)].size()<<std::endl;
+                communityNo++;
+                communityMessageSet.clear();
+                thresh = 0;
+            }
+        }
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
+    cout<<"divide community finished,uses "<<duration.count()<<"s"<<endl;
+    // 将message按照personid%part划分到part集合中
+    // std::vector<std::unordered_set<std::string>> commentSetArray(part);
+    // std::vector<std::unordered_set<std::string>> postSetArray(part);
+    std::string outPath="./output";
+    std::string outPath1="./route";
+    if (!createDirectory(outPath)) {
+        // std::cerr << "Failed or no need to create directory." << std::endl;
+    }
+    outPath="./output/messages";
+    if (!createDirectory(outPath)) {
+        // std::cerr << "Failed or no need to create directory." << std::endl;
+    }
+    if (!createDirectory(outPath1)) {
+        // std::cerr << "Failed or no need to create directory." << std::endl;
+    }
+    std::ofstream message2partf("./route/message2part.csv");
+    std::ofstream person2partf("./route/person2messagePart.csv");
+    int commuCnt = 0;
+    // int mc_num = part/communityNo;// 每个社区的message分片数量
+    for(auto community:communitiesSet) {
+        for(auto person:community.second) {
+            int tmpCnt=0;
+            person2partf<<person<<'|'<<community.first<<std::endl;
+            for(auto i: comment_hasCreator_person_r[person]) {
+                
+                commentSetArray[std::stol(community.first)].insert(i);
+                message2partf<<i<<'|'<<community.first<<std::endl;
+            }
+            for(auto i: post_hasCreator_person_r[person]) {
+                
+                postSetArray[std::stol(community.first)].insert(i);
+                message2partf<<i<<'|'<<community.first<<std::endl;
+            }
+        }
+        
+    }
+    message2partf.close();
+    person2partf.close();
+}
+
+void divideMessageChain(unordered_map<string, std::unordered_set<std::string>>& communitiesSet,
+                     std::vector<std::unordered_set<std::string>> &commentSetArray,
+                     std::vector<std::unordered_set<std::string>> &postSetArray,
+                     std::unordered_map<std::string,std::string> &comment_hasCreator_person, 
+                     std::unordered_map<std::string,std::string> &post_hasCreator_person,
+                     std::unordered_map<std::string,std::unordered_set<std::string>> &post_containerOf_forum,
+                     std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_comment_r,
+                     std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_post_r,
+                     std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_comment,
+                     std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_post) {
+    std::string outPath="./output";
+    for(int i=0;i<communitiesSet.size();i++){
+            // GetCurrentProcessMemoryUsage();
+            outPath="./output/messages/";
+            outPath+=std::to_string(i);
+            // 如果文件夹不存在，则创建它
+            if (!createDirectory(outPath)) {
+                std::cerr << "Failed or no need to create directory."<<outPath << std::endl;
+            }
+            std::cout<<outPath<<std::endl;
+            std::ofstream outfile(outPath+"/comment_hasCreator_person_0_0.csv");
+            std::ofstream outfile0(outPath+"/post_hasCreator_person_0_0.csv");
+            std::ofstream outfile1(outPath+"/comment_0_0.csv");
+            std::ofstream outfile1_1(outPath+"/comment_0_0_added.csv");
+            std::ofstream outfile2(outPath+"/post_0_0.csv");
+            std::ofstream outfile2_1(outPath+"/post_0_0_added.csv");
+
+            std::ofstream file3_1(outPath+"/comment_replyOf_comment_0_0.csv");
+            std::ofstream file3_2(outPath+"/comment_replyOf_post_0_0.csv");
+
+            
+            std::ofstream outfile4(outPath+"/comment_isLocatedIn_place_0_0.csv");
+            std::ofstream outfile5(outPath+"/post_isLocatedIn_place_0_0.csv");
+            std::ofstream outfile6(outPath+"/comment_hasTag_tag_0_0.csv");
+            std::ofstream outfile7(outPath+"/post_hasTag_tag_0_0.csv");
+
+            std::ofstream outfile8(outPath+"/forum_containerOf_post_0_0.csv");
+            std::ofstream outfile9(outPath+"/forum_0_0.csv");
+
+            std::ofstream outfile10(outPath+"/person_0_0.csv");
+
+            std::ofstream likes1(outPath+"/person_likes_comment_0_0.csv");
+            std::ofstream likes2(outPath+"/person_likes_post_0_0.csv");
+
+            std::ofstream person_comment(outPath+"/person-comment_0_0.csv");
+            std::ofstream person_post(outPath+"/person-post_0_0.csv");
+            // std::cout<<"open"<<std::endl;
+            // GetCurrentProcessMemoryUsage();
+
+            if (outfile.is_open()) {
+                std::cout << "文件成功打开，现在可以写入数据。" << std::endl;
+                // 在这里写入数据到文件
+            } else {
+                std::cout << "文件打开失败，请检查路径和权限：" << outPath+"/post_hasCreator_person_0_0.csv" << std::endl;
+            }
+            // 写入person
+            for(auto i:communitiesSet[std::to_string(i)]) {
+                outfile10<<i<<std::endl;
+            }
+            outfile10.close();
+
+            
+            // 去重comment2comment
+            std::unordered_map<std::string,std::unordered_map<std::string,int>> visited; 
+            // 去重comment2post
+            std::unordered_map<std::string,std::unordered_map<std::string,int>> visited1; 
+            // 去重当前分片的comment、post、forum
+            std::unordered_set<std::string> tmpComment;
+            std::unordered_set<std::string> tmpPost;
+            std::unordered_set<std::string> tmpForum;
+            // 存储commentPath
+            std::unordered_map<std::string,std::vector<std::string>> commentPath;
+
+            tmpComment.insert(commentSetArray[i].begin(),commentSetArray[i].end());
+            tmpPost.insert(postSetArray[i].begin(),postSetArray[i].end());
+
+            // 开始划分message
+            for(auto k:commentSetArray[i]) {
+                // comment的前向comment和边
+                tmpComment.insert(comment_replyOf_comment_r[k].begin(),comment_replyOf_comment_r[k].end());
+                for(auto kk:comment_replyOf_comment_r[k]){
+                    if(visited[kk].find(k)==visited[kk].end()) {
+                            visited[kk][k] = 1;
+                            file3_1<<kk<<'|'<<k<<std::endl;
+                    }
+                }
+                // comment的后向comment和边
+                tmpComment.insert(comment_replyOf_comment[k].begin(),comment_replyOf_comment[k].end());
+                for(auto kk:comment_replyOf_comment[k]){
+                    if(visited[k].find(kk)==visited[k].end()) {
+                            visited[k][kk] = 1;
+                            file3_1<<k<<'|'<<kk<<std::endl;
+                    }
+                }
+                // comment的后向post和边
+                tmpPost.insert(comment_replyOf_post[k].begin(),comment_replyOf_post[k].end());
+                for(auto kk:comment_replyOf_post[k]){
+                    if(visited1[k].find(kk)==visited1[k].end()) {
+                            visited1[k][kk] = 1;
+                            file3_2<<k<<'|'<<kk<<std::endl;
+                    }
+                }
+            }
+            for(auto k:postSetArray[i]) {
+                // post的前向
+                tmpComment.insert(comment_replyOf_post_r[k].begin(),comment_replyOf_post_r[k].end());
+                for(auto kk:comment_replyOf_post_r[k]){
+                    if(visited1[kk].find(k)==visited1[kk].end()) {
+                            visited1[kk][k] = 1;
+                            file3_2<<kk<<'|'<<k<<std::endl;
+                    }
+                }
+            }
+            
+            // std::unordered_map<std::string,std::vector<std::string>> commentPath;
+            for (auto k:commentSetArray[i]) {
+                std::vector<std::string> tmp;
+                dfs(k, comment_replyOf_comment, tmp, commentPath);
+            }
+            for(auto k=commentPath.begin();k!=commentPath.end();k++){
+                std::string from = k->first;
+                std::vector<std::string> tmp = k->second;
+                if(tmp.size()==1) {
+                    // comment没有comment邻居
+                    // ！！！这里也要存post
+                    tmpComment.insert(tmp[0]); // 里面本来就存了
+                    // file3_1<<tmp[0]<<'|'<<tmp[1]<<std::endl;
+                    for(std::string j : comment_replyOf_post[tmp[0]]) {
+                        tmpPost.insert(j);
+                        if(visited1[tmp[0]].find(j)==visited1[tmp[0]].end()) {
+                            visited1[tmp[0]][j] = 1;
+                            file3_2<<tmp[0]<<'|'<<j<<std::endl;
+                        }
+                        // file3_2<<tmp[0]<<'|'<<j<<std::endl;
+                    }
+                } else if(tmp.size()==2) {
+                    // comment只有一步comment
+                    tmpComment.insert(tmp[1]);
+                    if(visited[tmp[0]].find(tmp[1])==visited[tmp[0]].end()) {
+                        visited[tmp[0]][tmp[1]] = 1;
+                        file3_1<<tmp[0]<<'|'<<tmp[1]<<std::endl;
+                    }
+                    // file3_1<<tmp[0]<<'|'<<tmp[1]<<std::endl;
+                    for(std::string j : comment_replyOf_post[tmp[1]]) {
+                        // comment存在comment链
+                        tmpPost.insert(j);
+                        if(visited1[tmp[1]].find(j)==visited1[tmp[1]].end()) {
+                            visited1[tmp[1]][j] = 1;
+                            file3_2<<tmp[1]<<'|'<<j<<std::endl;
+                        }
+                        // file3_2<<tmp[1]<<'|'<<j<<std::endl;
+                    }
+                } else {
+                    // 顶点有多步邻居
+                    tmpComment.insert(tmp[1]);
+                    if(visited[tmp[0]].find(tmp[1])==visited[tmp[0]].end()) {
+                        visited[tmp[0]][tmp[1]] = 1;
+                        file3_1<<tmp[0]<<'|'<<tmp[1]<<std::endl;
+                    }
+                    // 这里把末端邻居合并为post
+                    for(std::string j : comment_replyOf_post[tmp[2]]) {
+                        tmpPost.insert(j);
+                        if(visited1[tmp[1]].find(j)==visited1[tmp[1]].end()) {
+                            visited1[tmp[1]][j] = 1;
+                            file3_2<<tmp[1]<<'|'<<j<<std::endl;
+                        }
+                        // 压缩了路径，不过好像导致comment2post变多了？
+                    }
+                }
+            }
+            
+            // std::cout<<"message extend finished"<<std::endl;
+            // GetCurrentProcessMemoryUsage();
+
+            // 写入comment
+            for(auto k:tmpComment){
+                // 这里改成中心comment存整行，非中心comment存id（需要加空列）
+                // outfile1原版本
+                // outfile1<<comment_0_0[k]<<std::endl;
+                // outfile1新版本
+                if(commentSetArray[i].find(k)!=commentSetArray[i].end()) {
+                    outfile<<k<<'|'<<comment_hasCreator_person[k]<<std::endl;
+                    // 是中心message
+                    person_comment<<k<<std::endl;
+                } else {
+                    outfile1_1<<k<<std::endl;
+                }
+            }
+            // 写入post
+            for(auto k:tmpPost){
+                // outfile2<<post_0_0[k]<<std::endl;
+                if(postSetArray[i].find(k)!=postSetArray[i].end()) {
+                    outfile0<<k<<'|'<<post_hasCreator_person[k]<<std::endl;
+                    // 是中心message
+                    person_post<<k<<std::endl;
+                } else {
+                    outfile2_1<<k<<std::endl;
+                }
+                for(auto j:post_containerOf_forum[k]){
+                    outfile8<<j<<'|'<<k<<std::endl;
+                    tmpForum.insert(j);
+                }
+            }
+            
+            // 写入forum
+            for(auto k:tmpForum){
+                outfile9<<k<<std::endl;
+            }
+            
+            visited.clear();
+            visited.rehash(0);
+            visited1.clear();
+            visited1.rehash(0);
+            tmpComment.clear();
+            tmpComment = std::unordered_set<string>();
+            tmpPost.clear();
+            tmpPost = std::unordered_set<string>();
+            tmpForum.clear();
+            tmpForum = std::unordered_set<string>();
+            for (auto& pair : commentPath) {
+                pair.second.clear();
+                pair.second.shrink_to_fit();
+            }
+            commentPath.clear();
+            commentPath.rehash(0);
+            
+            outfile.close();
+            outfile0.close();
+            outfile1.close();
+            outfile1_1.close();
+            outfile2.close();
+            outfile2_1.close();
+            file3_1.close();
+            file3_2.close();
+            outfile4.close();
+            outfile5.close();
+            outfile6.close();
+            outfile7.close();
+            outfile8.close();
+            outfile9.close();
+            likes1.close();
+            likes2.close();
+            person_comment.close();
+            person_post.close();
+            // 强制释放内存
+            // std::cout<<"close"<<std::endl;
+            // GetCurrentProcessMemoryUsage();
+        }
+}
+
+void divideMessageProperty(std::vector<std::unordered_set<std::string>> &commentSetArray,
+                   std::vector<std::unordered_set<std::string>> &postSetArray,
+                   std::unordered_map<std::string,std::string> &comment_0_0,
+                   std::unordered_map<std::string,std::string> &post_0_0,
+                   std::unordered_map<std::string,std::unordered_set<std::string>> &comment_hasTag_tag,
+                   std::unordered_map<std::string,std::unordered_set<std::string>> &post_hasTag_tag,
+                   std::unordered_map<std::string,std::unordered_set<std::string>> &comment_isLocatedIn_place,
+                   std::unordered_map<std::string,std::unordered_set<std::string>> &post_isLocatedIn_place,
+                   std::unordered_map<std::string,std::unordered_map<std::string,std::string>> &person_likes_comment_r,
+                   std::unordered_map<std::string,std::unordered_map<std::string,std::string>> &person_likes_post_r) {
+    string outPath = "./output/";
+    for(int i=0;i<commentSetArray.size();i++){
+        // GetCurrentProcessMemoryUsage();
+        outPath="./output/messages/";
+        outPath+=std::to_string(i);
+        // // 如果文件夹不存在，则创建它
+        // if (!createDirectory(outPath)) {
+        //     std::cerr << "Failed or no need to create directory."<<outPath << std::endl;
+        // }
+        std::cout<<outPath<<std::endl;
+        std::ofstream outfile1(outPath+"/comment_0_0.csv");
+        std::ofstream outfile2(outPath+"/post_0_0.csv");
+        
+        std::ofstream outfile4(outPath+"/comment_isLocatedIn_place_0_0.csv");
+        std::ofstream outfile5(outPath+"/post_isLocatedIn_place_0_0.csv");
+        std::ofstream outfile6(outPath+"/comment_hasTag_tag_0_0.csv");
+        std::ofstream outfile7(outPath+"/post_hasTag_tag_0_0.csv");
+
+        std::ofstream likes1(outPath+"/person_likes_comment_0_0.csv");
+        std::ofstream likes2(outPath+"/person_likes_post_0_0.csv");
+
+        std::ofstream person_comment(outPath+"/person-comment_0_0.csv");
+        std::ofstream person_post(outPath+"/person-post_0_0.csv");
+        
+        
+
+        // 开始划分message
+        for(auto k:commentSetArray[i]) {
+            outfile1<<comment_0_0[k]<<std::endl;
+            for(auto j:comment_isLocatedIn_place[k]){
+                outfile4<<k<<'|'<<j<<std::endl;
+            }
+            for(auto j:comment_hasTag_tag[k]){
+                outfile6<<k<<'|'<<j<<std::endl;
+            }
+            for(auto j:person_likes_comment_r[k]){
+                likes1<<j.first<<'|'<<k<<'|'<<j.second<<std::endl;
+            }
+            person_comment<<k<<std::endl;
+        }
+        for(auto k:postSetArray[i]) {
+            outfile2<<post_0_0[k]<<std::endl;
+            for(auto j:post_isLocatedIn_place[k]){
+                outfile5<<k<<'|'<<j<<std::endl;
+            }
+            for(auto j:post_hasTag_tag[k]){
+                outfile7<<k<<'|'<<j<<std::endl;
+            }
+            for(auto j:person_likes_post_r[k]){
+                likes2<<j.first<<'|'<<k<<'|'<<j.second<<std::endl;
+            }
+            person_post<<k<<std::endl;
+        }
+        
+        outfile1.close();
+        outfile2.close();
+        outfile4.close();
+        outfile5.close();
+        outfile6.close();
+        outfile7.close();
+
+        likes1.close();
+        likes2.close();
+        person_comment.close();
+        person_post.close();
+        
+    }
+}
+
+void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::string,std::string> &person_0_0, 
+                                                    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> &person_likes_comment_r,
+                                                    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> &person_likes_post_r,
+                                                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_hasCreator_person_r, 
+                                                    std::unordered_map<std::string,std::unordered_set<std::string>> &post_hasCreator_person_r,
+                                                    std::unordered_map<std::string,std::string> &comment_hasCreator_person, 
+                                                    std::unordered_map<std::string,std::string> &post_hasCreator_person,
+                                                    std::unordered_map<std::string,std::unordered_set<std::string>> &post_containerOf_forum,
+                                                    std::unordered_map<std::string,std::string> &comment_0_0,
+                                                    std::unordered_map<std::string,std::string> &post_0_0,
+                                                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_comment_r,
+                                                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_post_r,
+                                                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_comment,
+                                                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_post,
+                                                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_hasTag_tag,
+                                                    std::unordered_map<std::string,std::unordered_set<std::string>> &post_hasTag_tag,
+                                                    std::unordered_map<std::string,std::unordered_set<std::string>> &comment_isLocatedIn_place,
+                                                    std::unordered_map<std::string,std::unordered_set<std::string>> &post_isLocatedIn_place) {
+    // 构建带权图
+    Graph g;
+    createLGraph(person_0_0,comment_hasCreator_person_r,post_hasCreator_person_r,comment_hasCreator_person,post_hasCreator_person,comment_replyOf_comment,comment_replyOf_post,g);
+    // printMemoryUsage();
+    GetCurrentProcessMemoryUsage();
+    auto start = std::chrono::high_resolution_clock::now();
+    // std::unordered_map<std::string,std::unordered_set<std::string>> person_message_set = merge_maps(comment_hasCreator_person_r, post_hasCreator_person_r);
+    std::unordered_set<std::string> communityMessageSet; //存储当前社区中person发布的message，用于判断阈值
+    unordered_map<string, std::unordered_set<std::string>> communitiesSet;  //存储每个社区中person
+    std::unordered_set<std::string> pPerson;  //存储已分配到社区中person
+    int communityNo=0;
+    int thresh = 0;
+    // 分配社区中的person
+    while(g.getAdjList().size()>0) {
+        // 取一个点加入社区
+        auto it = g.getAdjList().begin();
+        while(it!=g.getAdjList().end()&&pPerson.find(it->first)!=pPerson.end()) {
+            it++;
+        }
+        if(it==g.getAdjList().end()) {
+            break;
+        }
+        string center = it->first;
+        pPerson.insert(center);
+        communitiesSet[to_string(communityNo)].insert(center);
+        // communityMessageSet.insert(person_message_set[center].begin(),person_message_set[center].end());
+        communityMessageSet.insert(comment_hasCreator_person_r[center].begin(),comment_hasCreator_person_r[center].end());
+        communityMessageSet.insert(post_hasCreator_person_r[center].begin(),post_hasCreator_person_r[center].end());
+        thresh = communityMessageSet.size();
+        if(thresh>=(messageNum/part)) {
+            std::cout<<"divide community phase1 finished,community size:"<<communitiesSet[to_string(communityNo)].size()<<std::endl;
+            communityNo++;
+            thresh = 0;
+            for(auto i:communitiesSet[to_string(communityNo)]) {
+                g.removeNodes({i});
+            }
+            communityMessageSet.clear();
+            continue;
+        }
+        PointHeap pointHeap;
+        for(auto neighbor: g.getNeighbor(center)) {
+            pointHeap.push({g.getNodeWeight(neighbor),neighbor});
+        }
+        // 取出社区中心的最大邻居，直到社区超过阈值或者没有邻居
+        while(!pointHeap.isEmpty()) {
+            // 取出最大邻居
+            string tmp = pointHeap.pop().name;
+            // 邻居已经分配到社区中就跳过
+            if(pPerson.find(tmp)!=pPerson.end()) {
+                continue;
+            }
+            pPerson.insert(tmp);
+            communitiesSet[to_string(communityNo)].insert(tmp);
+            // communityMessageSet.insert(person_message_set[tmp].begin(),person_message_set[tmp].end());
+            communityMessageSet.insert(comment_hasCreator_person_r[tmp].begin(),comment_hasCreator_person_r[tmp].end());
+            communityMessageSet.insert(post_hasCreator_person_r[tmp].begin(),post_hasCreator_person_r[tmp].end());
+            thresh = communityMessageSet.size();
+            if(thresh>=(messageNum/part)) {
+                std::cout<<"divide community phase1 finished,community size:"<<communitiesSet[to_string(communityNo)].size()<<std::endl;
+                communityNo++;
+                thresh = 0;
+                for(auto i:communitiesSet[to_string(communityNo)]) {
+                    g.removeNodes({i});
+                }
+                communityMessageSet.clear();
+                break;
+            }
+        }
+    }
+    // 分配不在社区中person，就是没有发布message的person或者message没有关联的person
+    for(auto i:person_0_0) {
+        if(pPerson.size()>=person_0_0.size()) {
+            break;
+        }
+        if(pPerson.find(i.first)==pPerson.end()) {
+            string cur = i.first;
+            pPerson.insert(cur);
+            communitiesSet[to_string(communityNo)].insert(cur);
+            // communityMessageSet.insert(person_message_set[cur].begin(),person_message_set[cur].end());
+            communityMessageSet.insert(comment_hasCreator_person_r[cur].begin(),comment_hasCreator_person_r[cur].end());
+            communityMessageSet.insert(post_hasCreator_person_r[cur].begin(),post_hasCreator_person_r[cur].end());
             thresh = communityMessageSet.size();
             if(thresh>=(messageNum/part)) {
                 std::cout<<"divide community phase2 finished,community size:"<<communitiesSet[to_string(communityNo)].size()<<std::endl;
@@ -3922,8 +4771,10 @@ void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::st
         // commuCnt++;
     }
     message2partf.close();
+    person2partf.close();
     
     for(int i=0;i<communitiesSet.size();i++){
+        // GetCurrentProcessMemoryUsage();
         outPath="./output/messages/";
         outPath+=std::to_string(i);
         // 如果文件夹不存在，则创建它
@@ -3957,6 +4808,8 @@ void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::st
 
         std::ofstream person_comment(outPath+"/person-comment_0_0.csv");
         std::ofstream person_post(outPath+"/person-post_0_0.csv");
+        // std::cout<<"open"<<std::endl;
+        // GetCurrentProcessMemoryUsage();
 
         if (outfile.is_open()) {
             std::cout << "文件成功打开，现在可以写入数据。" << std::endl;
@@ -3975,11 +4828,13 @@ void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::st
         std::unordered_map<std::string,std::unordered_map<std::string,int>> visited; 
         // 去重comment2post
         std::unordered_map<std::string,std::unordered_map<std::string,int>> visited1; 
-        
-        std::set<std::string> tmpComment;
-        std::set<std::string> tmpPost;
-        std::set<std::string> tmpForum;
-        std::set<std::string> tmpPerson;
+        // 去重当前分片的comment、post、forum
+        std::unordered_set<std::string> tmpComment;
+        std::unordered_set<std::string> tmpPost;
+        std::unordered_set<std::string> tmpForum;
+        // 存储commentPath
+        std::unordered_map<std::string,std::vector<std::string>> commentPath;
+
         tmpComment.insert(commentSetArray[i].begin(),commentSetArray[i].end());
         tmpPost.insert(postSetArray[i].begin(),postSetArray[i].end());
 
@@ -4021,7 +4876,7 @@ void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::st
             }
         }
         
-        std::unordered_map<std::string,std::vector<std::string>> commentPath;
+        // std::unordered_map<std::string,std::vector<std::string>> commentPath;
         for (auto k:commentSetArray[i]) {
             std::vector<std::string> tmp;
             dfs(k, comment_replyOf_comment, tmp, commentPath);
@@ -4077,6 +4932,9 @@ void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::st
                 }
             }
         }
+        
+        // std::cout<<"message extend finished"<<std::endl;
+        // GetCurrentProcessMemoryUsage();
 
         // 写入comment
         for(auto k:tmpComment){
@@ -4115,7 +4973,6 @@ void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::st
                 for(auto j:person_likes_post_r[k]){
                     likes2<<j.first<<'|'<<k<<'|'<<j.second<<std::endl;
                 }
-
             } else {
                 outfile2_1<<k<<std::endl;
             }
@@ -4130,10 +4987,30 @@ void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::st
                 tmpForum.insert(j);
             }
         }
+        // std::cout<<"forum extend finished"<<std::endl;
+        // GetCurrentProcessMemoryUsage();
         // 写入forum
         for(auto k:tmpForum){
             outfile9<<k<<std::endl;
         }
+        
+
+        visited.clear();
+        visited.rehash(0);
+        visited1.clear();
+        visited1.rehash(0);
+        tmpComment.clear();
+        tmpComment = std::unordered_set<string>();
+        tmpPost.clear();
+        tmpPost = std::unordered_set<string>();
+        tmpForum.clear();
+        tmpForum = std::unordered_set<string>();
+        for (auto& pair : commentPath) {
+            pair.second.clear();
+            pair.second.shrink_to_fit();
+        }
+        commentPath.clear();
+        commentPath.rehash(0);
         
         outfile.close();
         outfile0.close();
@@ -4147,32 +5024,44 @@ void divideMessageCommunity(int part, int messageNum, std::unordered_map<std::st
         outfile5.close();
         outfile6.close();
         outfile7.close();
-
         outfile8.close();
         outfile9.close();
+        likes1.close();
+        likes2.close();
+        person_comment.close();
+        person_post.close();
+        // 强制释放内存
+        // std::cout<<"close"<<std::endl;
+        // GetCurrentProcessMemoryUsage();
+        
     }
-
+    // printMemoryUsage();
+    communityMessageSet.clear();
+    communitiesSet.clear();
+    pPerson.clear();
 }
+
+
 // 多线程版本
-void divideMessageCommunityThreads(int part, int messageNum, std::unordered_map<std::string,std::string> person_0_0,
-                                            std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_likes_comment_r,
-                                            std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_likes_post_r,
-                                            std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasCreator_person_r, 
-                                            std::unordered_map<std::string,std::unordered_set<std::string>> post_hasCreator_person_r,
-                                            std::unordered_map<std::string,std::string> comment_hasCreator_person, 
-                                            std::unordered_map<std::string,std::string> post_hasCreator_person,
-                                            std::unordered_map<std::string,std::unordered_set<std::string>> post_containerOf_forum,
-                                            std::unordered_map<std::string,std::string> comment_0_0,
-                                            std::unordered_map<std::string,std::string> post_0_0,
-                                            std::unordered_map<std::string,std::string> forum_0_0,
-                                            std::unordered_map<std::string,std::unordered_set<std::string>> comment_replyOf_comment_r,
-                                            std::unordered_map<std::string,std::unordered_set<std::string>> comment_replyOf_post_r,
-                                            std::unordered_map<std::string,std::unordered_set<std::string>> comment_replyOf_comment,
-                                            std::unordered_map<std::string,std::unordered_set<std::string>> comment_replyOf_post,
-                                            std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasTag_tag,
-                                            std::unordered_map<std::string,std::unordered_set<std::string>> post_hasTag_tag,
-                                            std::unordered_map<std::string,std::unordered_set<std::string>> comment_isLocatedIn_place,
-                                            std::unordered_map<std::string,std::unordered_set<std::string>> post_isLocatedIn_place) {
+void divideMessageCommunityThreads(int part, int messageNum, std::unordered_map<std::string,std::string> &person_0_0,
+                                            std::unordered_map<std::string,std::unordered_map<std::string,std::string>> &person_likes_comment_r,
+                                            std::unordered_map<std::string,std::unordered_map<std::string,std::string>> &person_likes_post_r,
+                                            std::unordered_map<std::string,std::unordered_set<std::string>> &comment_hasCreator_person_r, 
+                                            std::unordered_map<std::string,std::unordered_set<std::string>> &post_hasCreator_person_r,
+                                            std::unordered_map<std::string,std::string> &comment_hasCreator_person, 
+                                            std::unordered_map<std::string,std::string> &post_hasCreator_person,
+                                            std::unordered_map<std::string,std::unordered_set<std::string>> &post_containerOf_forum,
+                                            std::unordered_map<std::string,std::string> &comment_0_0,
+                                            std::unordered_map<std::string,std::string> &post_0_0,
+                                            std::unordered_map<std::string,std::string> &forum_0_0,
+                                            std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_comment_r,
+                                            std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_post_r,
+                                            std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_comment,
+                                            std::unordered_map<std::string,std::unordered_set<std::string>> &comment_replyOf_post,
+                                            std::unordered_map<std::string,std::unordered_set<std::string>> &comment_hasTag_tag,
+                                            std::unordered_map<std::string,std::unordered_set<std::string>> &post_hasTag_tag,
+                                            std::unordered_map<std::string,std::unordered_set<std::string>> &comment_isLocatedIn_place,
+                                            std::unordered_map<std::string,std::unordered_set<std::string>> &post_isLocatedIn_place) {
     auto start = std::chrono::high_resolution_clock::now();
     // 构建带权图
     Graph g;
@@ -4720,9 +5609,9 @@ void divideMessageHashAll(int part, std::unordered_map<std::string,std::unordere
         // 去重comment2post
         std::unordered_map<std::string,std::unordered_map<std::string,int>> visited1; 
         
-        std::set<std::string> tmpComment;
-        std::set<std::string> tmpPost;
-        std::set<std::string> tmpForum;
+        std::unordered_set<std::string> tmpComment;
+        std::unordered_set<std::string> tmpPost;
+        std::unordered_set<std::string> tmpForum;
         tmpComment.insert(commentSetArray[i].begin(),commentSetArray[i].end());
         tmpPost.insert(postSetArray[i].begin(),postSetArray[i].end());
 
@@ -4901,7 +5790,7 @@ void divideMessageHashAll(int part, std::unordered_map<std::string,std::unordere
 
 }
 
-void onecol(std::unordered_map<std::string,std::unordered_map<std::string,std::string>> forum_hasMember_person, std::unordered_map<std::string,std::unordered_set<std::string>> forum_containerOf_post_r) {
+void onecol(std::unordered_map<std::string,std::unordered_map<std::string,std::string>> &forum_hasMember_person, std::unordered_map<std::string,std::unordered_set<std::string>> &forum_containerOf_post_r) {
     std::string outPath="./output/";
     std::ofstream outfile(outPath+"/forum_0_0-person.csv");
     std::ofstream outfile1(outPath+"/post_0_0-forum.csv");
@@ -4920,9 +5809,9 @@ void onecol(std::unordered_map<std::string,std::unordered_map<std::string,std::s
         outfile1<<i<<std::endl;
     }
 }
-void personAdd(std::unordered_map<std::string,std::unordered_map<std::string,std::string>> forum_hasMember_person,
-                std::unordered_map<std::string, std::string> comment_0_0,
-                std::unordered_map<std::string, std::string> post_0_0) {
+void personAdd(//std::unordered_map<std::string,std::unordered_map<std::string,std::string>> &forum_hasMember_person,
+                std::unordered_map<std::string, std::string> &comment_0_0,
+                std::unordered_map<std::string, std::string> &post_0_0) {
     std::string outPath="./output/person";
     if (!createDirectory(outPath)) {
         // std::cerr << "Failed or no need to create directory." << std::endl;
@@ -4950,12 +5839,28 @@ void personAdd(std::unordered_map<std::string,std::unordered_map<std::string,std
     }
     outfile.close();
 }
-void forumAdd(std::unordered_map<std::string, std::string> forum_0_0, std::unordered_map<std::string,std::unordered_set<std::string>> forum_containerOf_post_r, std::unordered_map<std::string,std::string> post_hasCreator_person) {
+
+
+void forumAdd(std::unordered_map<std::string, std::string> &post_0_0) {
     std::string outPath="./output/forum";
     if (!createDirectory(outPath)) {
         // std::cerr << "Failed or no need to create directory." << std::endl;
     }
     std::ofstream outfile1(outPath+"/post_0_0.csv");
+    for(auto i:post_0_0) {
+        outfile1<<i.first<<std::endl;
+    }
+    outfile1.close();
+}
+
+
+void forumAdd1(std::unordered_map<std::string,std::unordered_set<std::string>> &forum_containerOf_post_r, std::unordered_map<std::string,std::string> &post_hasCreator_person) {
+    std::string outPath="./output/forum";
+    if (!createDirectory(outPath)) {
+        // std::cerr << "Failed or no need to create directory." << std::endl;
+    }
+    std::ofstream outfile1(outPath+"/post_0_0.csv");
+    // 这里forum是一个分片，其实就是全图
     std::ofstream outfile2(outPath+"/post_hasCreator_person_0_0.csv");
     std::set<std::string> post;
     std::set<std::string> person;
@@ -4972,25 +5877,50 @@ void forumAdd(std::unordered_map<std::string, std::string> forum_0_0, std::unord
     outfile2.close();
 }
 
+// 释放容器空间的函数
+void releaseMemory(std::unordered_map<std::string, std::string>& map) {
+    map.clear();
+    std::unordered_map<std::string, std::string>().swap(map);
+}
+
+// 释放嵌套的 unordered_map 的空间
+void releaseNestedMap(std::unordered_map<std::string, std::unordered_map<std::string, std::string>>& map) {
+    for (auto& outer_pair : map) {
+        outer_pair.second.clear();
+        std::unordered_map<std::string, std::string>().swap(outer_pair.second);
+    }
+    map.clear();
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>>().swap(map);
+}
+
+// 释放嵌套的 unordered_map 的空间
+void releaseNestedMap(std::unordered_map<std::string, std::unordered_set<std::string>>& map) {
+    for (auto& outer_pair : map) {
+        outer_pair.second.clear();
+        std::unordered_set<std::string>().swap(outer_pair.second);
+    }
+    map.clear();
+    std::unordered_map<std::string, std::unordered_set<std::string>>().swap(map);
+}
+
 
 int main() {
     // 获取开始时间点
     auto start = std::chrono::high_resolution_clock::now();
 
-    std::string initialDir = "/home/shared/data/social_network-csv_composite-longdateformatter-sf30/dynamic/";
+    std::string initialDir = "/home/shared/data/social_network-csv_composite-longdateformatter-sf0.1/dynamic/";
 
     // 调用loadAll函数，加载所有数据
-    std::unordered_map<std::string, std::string> person;
     std::unordered_map<std::string,std::unordered_set<std::string>> person_hasInterest_tag;
     std::unordered_map<std::string,std::unordered_set<std::string>> person_isLocatedIn_place;
     std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_studyAt_organisation;
     std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_workAt_organisation;
     std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_likes_comment_r;
     std::unordered_map<std::string,std::unordered_map<std::string,std::string>> person_likes_post_r;
-    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> forum_hasMember_person_r;
-    std::unordered_map<std::string,std::unordered_map<std::string,std::string>> forum_hasMember_person;
-    std::unordered_map<std::string,std::unordered_set<std::string>> forum_hasModerator_person_r;
-    std::unordered_map<std::string,std::string> forum_hasModerator_person;
+    // std::unordered_map<std::string,std::unordered_map<std::string,std::string>> forum_hasMember_person_r;
+    // std::unordered_map<std::string,std::unordered_map<std::string,std::string>> forum_hasMember_person;
+    // std::unordered_map<std::string,std::unordered_set<std::string>> forum_hasModerator_person_r;
+    // std::unordered_map<std::string,std::string> forum_hasModerator_person;
     std::unordered_map<std::string,std::unordered_set<std::string>> comment_hasCreator_person_r;
     std::unordered_map<std::string,std::string> comment_hasCreator_person;
     std::unordered_map<std::string,std::unordered_set<std::string>> post_hasCreator_person_r;
@@ -5011,28 +5941,76 @@ int main() {
     std::unordered_map<std::string, std::string> comment_0_0;
     std::unordered_map<std::string, std::string> post_0_0;
     std::unordered_map<std::string, std::string> forum_0_0;
-    loadAll(initialDir, person, person_hasInterest_tag, person_isLocatedIn_place, person_studyAt_organisation, person_workAt_organisation, person_likes_comment_r, person_likes_post_r, forum_hasMember_person_r, forum_hasMember_person, forum_hasModerator_person_r, forum_hasModerator_person, comment_hasCreator_person_r, comment_hasCreator_person, post_hasCreator_person_r, post_hasCreator_person, post_hasTag_tag, post_isLocatedIn_place, comment_hasTag_tag, comment_isLocatedIn_place, forum_containerOf_post, forum_containerOf_post_r, comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post, person_0_0, comment_0_0, post_0_0, forum_0_0);
-    // std::cout<<person_0_0.size()<<std::endl;
+
+    
+    int part = 10;
+    Graph g;    //存储person-replyOf带权图
+    unordered_map<string, std::unordered_set<std::string>> communitiesSet;
+    std::vector<std::unordered_set<std::string>> commentSetArray(part);
+    std::vector<std::unordered_set<std::string>> postSetArray(part);
+    std::cout<<"initial memory:"<<std::endl;
+    GetCurrentProcessMemoryUsage();
+
+    // version1:
+    // // origin loadAll
+    // // loadAll(initialDir, person, person_hasInterest_tag, person_isLocatedIn_place, person_studyAt_organisation, person_workAt_organisation, person_likes_comment_r, person_likes_post_r, forum_hasMember_person_r, forum_hasMember_person, forum_hasModerator_person_r, forum_hasModerator_person, comment_hasCreator_person_r, comment_hasCreator_person, post_hasCreator_person_r, post_hasCreator_person, post_hasTag_tag, post_isLocatedIn_place, comment_hasTag_tag, comment_isLocatedIn_place, forum_containerOf_post, forum_containerOf_post_r, comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post, person_0_0, comment_0_0, post_0_0, forum_0_0);
+    // new loadAll, remove useless load
+    // loadAll(initialDir, person_hasInterest_tag, person_isLocatedIn_place, person_studyAt_organisation, person_workAt_organisation, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, comment_hasCreator_person, post_hasCreator_person_r, post_hasCreator_person, post_hasTag_tag, post_isLocatedIn_place, comment_hasTag_tag, comment_isLocatedIn_place, forum_containerOf_post, forum_containerOf_post_r, comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post, person_0_0, comment_0_0, post_0_0, forum_0_0);
+    // auto loadEnd = std::chrono::high_resolution_clock::now();
+    // auto loadDuration = std::chrono::duration_cast<std::chrono::seconds>(loadEnd - start);
+    // std::cout << "load uses: " << loadDuration.count() << " seconds" << std::endl;
+
+    // // 划分
+    // // 哈希划分message分片，传入参数：哈希桶数目
+    // // divideMessage(100, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,comment_0_0,post_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
+    
+    // // divideMessageHashAll(100, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
+    
+    // // sf0.1
+    // divideMessageCommunity(10, 286744, person_0_0, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
+    // // divideMessageCommunityThreads(10, 286744, person_0_0, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
+    // // sf3
+    // // divideMessageCommunity(100, 9010236, person_0_0, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
+    // // divideMessageCommunityThreads(10, 9010236, person_0_0, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
+    // // sf30
+    // // divideMessageCommunity(100, 87095182, person_0_0, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
+    // // divideMessageCommunityThreads(10, 87095182, person_0_0, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
+    // GetCurrentProcessMemoryUsage();
+    // personAdd(comment_0_0,post_0_0);
+    // forumAdd(post_0_0);
+    // // forumAdd(forum_containerOf_post_r,post_hasCreator_person);
+
+    // version2: 分步载入划分，降低内存占用
+    loadMessageEdge(initialDir,person_0_0,comment_hasCreator_person_r,post_hasCreator_person_r,comment_hasCreator_person,post_hasCreator_person,forum_containerOf_post_r,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post);
+    createLGraph(person_0_0,comment_hasCreator_person_r,post_hasCreator_person_r,comment_hasCreator_person,post_hasCreator_person,comment_replyOf_comment,comment_replyOf_post,g);
+    std::cout<<"step1 start memory:"<<std::endl;
+    GetCurrentProcessMemoryUsage();
+    divideCommunity(part, 286744, g, person_0_0, comment_hasCreator_person_r, post_hasCreator_person_r,comment_replyOf_comment,comment_replyOf_post,communitiesSet,commentSetArray,postSetArray);
+    // divideCommunity(part, 9010236, g, person_0_0, comment_hasCreator_person_r, post_hasCreator_person_r,comment_replyOf_comment,comment_replyOf_post,communitiesSet,commentSetArray,postSetArray);
+    // divideCommunity(part, 87095182, g, person_0_0, comment_hasCreator_person_r, post_hasCreator_person_r,comment_replyOf_comment,comment_replyOf_post,communitiesSet,commentSetArray,postSetArray);
+    divideMessageChain(communitiesSet,commentSetArray,postSetArray,comment_hasCreator_person,post_hasCreator_person,forum_containerOf_post_r,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post);
+    std::cout<<"step1 end memory:"<<std::endl;
+    GetCurrentProcessMemoryUsage();
+    releaseMemory(person_0_0);
+    releaseNestedMap(comment_hasCreator_person_r);
+    releaseNestedMap(post_hasCreator_person_r);
+    releaseMemory(comment_hasCreator_person);
+    releaseMemory(post_hasCreator_person);
+    releaseNestedMap(comment_replyOf_comment);
+    releaseNestedMap(comment_replyOf_post);
+    releaseNestedMap(comment_replyOf_comment_r);
+    releaseNestedMap(comment_replyOf_post_r);
+    releaseNestedMap(forum_containerOf_post_r);
+    communitiesSet.clear();
+    releaseNestedMap(communitiesSet);
+    std::cout<<"step2 start memory:"<<std::endl;
+    GetCurrentProcessMemoryUsage();
+    loadMessageProperty(initialDir, comment_0_0, post_0_0,person_likes_comment_r,person_likes_post_r,post_hasTag_tag,post_isLocatedIn_place,comment_hasTag_tag,comment_isLocatedIn_place); 
+    divideMessageProperty(commentSetArray,postSetArray,comment_0_0,post_0_0,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place,person_likes_comment_r,person_likes_post_r);
+    personAdd(comment_0_0,post_0_0);
+    forumAdd(post_0_0);
     auto loadEnd = std::chrono::high_resolution_clock::now();
-    auto loadDuration = std::chrono::duration_cast<std::chrono::seconds>(loadEnd - start);
-    std::cout << "load uses: " << loadDuration.count() << " seconds" << std::endl;
-    // 哈希划分message分片，传入参数：哈希桶数目
-    // divideMessage(100, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,comment_0_0,post_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
-    
-    // divideMessageHashAll(100, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
-    
-    // sf0.1
-    // divideMessageCommunity(10, 286744, person_0_0, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
-    // divideMessageCommunityThreads(10, 286744, person_0_0, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
-    // sf3
-    // divideMessageCommunity(100, 9010236, person_0_0, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
-    // divideMessageCommunityThreads(10, 9010236, person_0_0, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
-    // sf30
-    divideMessageCommunity(10, 87095182, person_0_0, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
-    // divideMessageCommunityThreads(10, 87095182, person_0_0, person_likes_comment_r, person_likes_post_r, comment_hasCreator_person_r, post_hasCreator_person_r,comment_hasCreator_person, post_hasCreator_person,forum_containerOf_post_r,comment_0_0,post_0_0,forum_0_0,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,comment_hasTag_tag,post_hasTag_tag,comment_isLocatedIn_place,post_isLocatedIn_place);
-    personAdd(forum_hasMember_person,comment_0_0,post_0_0);
-    forumAdd(forum_0_0,forum_containerOf_post_r,post_hasCreator_person);
-    
+
     // 获取结束时间点
     auto end = std::chrono::high_resolution_clock::now();
 
