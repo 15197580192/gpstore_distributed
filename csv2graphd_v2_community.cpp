@@ -3967,7 +3967,6 @@ void loadMessageProperty(std::string filename,
         post_0_0[items[0]] = line;
     }
     file.close();
-    std::cout<<"load finished"<<std::endl;
 
     file.open(directory+"/person_likes_comment_0_0.csv");
     // std::getline(file, line); // Skip header line
@@ -4099,6 +4098,7 @@ void loadMessageProperty(std::string filename,
         comment_isLocatedIn_place[items[0]].insert(items[1]);
     }
     file.close();
+    std::cout<<"load finished"<<std::endl;
   
 }
 
