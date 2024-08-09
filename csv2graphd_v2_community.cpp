@@ -3969,6 +3969,7 @@ void loadMessageProperty(std::string filename,
     file.close();
     std::cout<<"load finished"<<std::endl;
 
+    file.open(directory+"/person_likes_comment_0_0.csv");
     // std::getline(file, line); // Skip header line
     while (std::getline(file, line)) {
         std::stringstream ss(line);
@@ -6015,7 +6016,7 @@ int main() {
     auto end = std::chrono::high_resolution_clock::now();
 
     auto outputDuration = std::chrono::duration_cast<std::chrono::seconds>(end - loadEnd);
-    std::cout << "write files uses: " << outputDuration.count() << " seconds" << std::endl;
+    // std::cout << "write files uses: " << outputDuration.count() << " seconds" << std::endl;
 
     // 计算所消耗的时间
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
