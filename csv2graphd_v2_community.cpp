@@ -4369,6 +4369,7 @@ void divideMessageChain(unordered_map<string, std::unordered_set<std::string>>& 
 
             std::ofstream file3_1(outPath+"/comment_replyOf_comment_0_0.csv");
             std::ofstream file3_2(outPath+"/comment_replyOf_post_0_0.csv");
+            std::ofstream file3_3(outPath+"/comment_replyOf_post_0_0_end.csv");
 
             
             // std::ofstream outfile4(outPath+"/comment_isLocatedIn_place_0_0.csv");
@@ -4453,7 +4454,7 @@ void divideMessageChain(unordered_map<string, std::unordered_set<std::string>>& 
                     }
                 }
             }
-            
+            visited1.clear();
             // std::unordered_map<std::string,std::vector<std::string>> commentPath;
             for (auto k:commentSetArray[i]) {
                 std::vector<std::string> tmp;
@@ -4471,7 +4472,8 @@ void divideMessageChain(unordered_map<string, std::unordered_set<std::string>>& 
                         tmpPost.insert(j);
                         if(visited1[tmp[0]].find(j)==visited1[tmp[0]].end()) {
                             visited1[tmp[0]][j] = 1;
-                            file3_2<<tmp[0]<<'|'<<j<<std::endl;
+                            // file3_2<<tmp[0]<<'|'<<j<<std::endl;
+                            file3_3<<tmp[0]<<'|'<<j<<std::endl;
                         }
                         // file3_2<<tmp[0]<<'|'<<j<<std::endl;
                     }
@@ -4486,9 +4488,10 @@ void divideMessageChain(unordered_map<string, std::unordered_set<std::string>>& 
                     for(std::string j : comment_replyOf_post[tmp[1]]) {
                         // comment存在comment链
                         tmpPost.insert(j);
-                        if(visited1[tmp[1]].find(j)==visited1[tmp[1]].end()) {
-                            visited1[tmp[1]][j] = 1;
-                            file3_2<<tmp[1]<<'|'<<j<<std::endl;
+                        if(visited1[tmp[0]].find(j)==visited1[tmp[0]].end()) {
+                            visited1[tmp[0]][j] = 1;
+                            // file3_2<<tmp[1]<<'|'<<j<<std::endl;  //是不是不对应该是tmp[0]
+                            file3_3<<tmp[0]<<'|'<<j<<std::endl;
                         }
                         // file3_2<<tmp[1]<<'|'<<j<<std::endl;
                     }
@@ -4502,9 +4505,10 @@ void divideMessageChain(unordered_map<string, std::unordered_set<std::string>>& 
                     // 这里把末端邻居合并为post
                     for(std::string j : comment_replyOf_post[tmp[2]]) {
                         tmpPost.insert(j);
-                        if(visited1[tmp[1]].find(j)==visited1[tmp[1]].end()) {
-                            visited1[tmp[1]][j] = 1;
-                            file3_2<<tmp[1]<<'|'<<j<<std::endl;
+                        if(visited1[tmp[0]].find(j)==visited1[tmp[0]].end()) {
+                            visited1[tmp[0]][j] = 1;
+                            // file3_2<<tmp[1]<<'|'<<j<<std::endl;  //是不是不对应该是tmp[0]
+                            file3_3<<tmp[0]<<'|'<<j<<std::endl;
                         }
                         // 压缩了路径，不过好像导致comment2post变多了？
                     }
@@ -5962,8 +5966,8 @@ int main() {
     // 获取开始时间点
     auto start = std::chrono::high_resolution_clock::now();
 
-    // std::string initialDir = "/home/shared/data/social_network-csv_composite-longdateformatter-sf0.1/dynamic/";
-    std::string initialDir = "/home/shared/data/social_network-csv_composite-longdateformatter-sf30/dynamic/";
+    std::string initialDir = "/home/shared/data/social_network-csv_composite-longdateformatter-sf0.1/dynamic/";
+    // std::string initialDir = "/home/shared/data/social_network-csv_composite-longdateformatter-sf30/dynamic/";
 
     // 调用loadAll函数，加载所有数据
     std::unordered_map<std::string,std::unordered_set<std::string>> person_hasInterest_tag;
@@ -6000,7 +6004,7 @@ int main() {
     std::unordered_map<std::string, std::string> forum_0_0;
 
     
-    int part = 100;
+    int part = 3;
     Graph g;    //存储person-replyOf带权图
     unordered_map<string, std::unordered_set<std::string>> communitiesSet;
     std::vector<std::unordered_set<std::string>> commentSetArray(part);
@@ -6043,9 +6047,9 @@ int main() {
     createLGraph(person_0_0,comment_hasCreator_person_r,post_hasCreator_person_r,comment_hasCreator_person,post_hasCreator_person,comment_replyOf_comment,comment_replyOf_post,g);
     std::cout<<"step1 start memory:"<<std::endl;
     GetCurrentProcessMemoryUsage();
-    // divideCommunity(part, 286744, g, person_0_0, comment_hasCreator_person_r, post_hasCreator_person_r,comment_replyOf_comment,comment_replyOf_post,communitiesSet,commentSetArray,postSetArray);
+    divideCommunity(part, 286744, g, person_0_0, comment_hasCreator_person_r, post_hasCreator_person_r,comment_replyOf_comment,comment_replyOf_post,communitiesSet,commentSetArray,postSetArray);
     // divideCommunity(part, 9010236, g, person_0_0, comment_hasCreator_person_r, post_hasCreator_person_r,comment_replyOf_comment,comment_replyOf_post,communitiesSet,commentSetArray,postSetArray);
-    divideCommunity(part, 87095182, g, person_0_0, comment_hasCreator_person_r, post_hasCreator_person_r,comment_replyOf_comment,comment_replyOf_post,communitiesSet,commentSetArray,postSetArray);
+    // divideCommunity(part, 87095182, g, person_0_0, comment_hasCreator_person_r, post_hasCreator_person_r,comment_replyOf_comment,comment_replyOf_post,communitiesSet,commentSetArray,postSetArray);
     divideMessageChain(communitiesSet,commentSetArray,postSetArray,comment_hasCreator_person,post_hasCreator_person,forum_containerOf_post_r,comment_replyOf_comment_r,comment_replyOf_post_r,comment_replyOf_comment,comment_replyOf_post,post_hasTag_tag,comment_creationDate,post_creationDate);
     std::cout<<"step1 end memory:"<<std::endl;
     GetCurrentProcessMemoryUsage();
