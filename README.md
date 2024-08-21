@@ -68,3 +68,4 @@ divideHeader="/home/huzheyuan/ldbc_partition/distribute_header"
 DataRoot="/home/huzheyuan/ldbc_partition/output/forum"
 # 建库目录
 DataBaseHome="./SF0.1_Divide3_3_end"
+```
