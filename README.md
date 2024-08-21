@@ -17,6 +17,7 @@ distribute_header/ 分布式建库特殊header
 
 ## 划分ldbcPartion.cpp
 > N个message分片+1个forum分片，分片数目指message分片数目
+
 ### 编译
 ```
 $ g++ ldbcPartition.cpp -o partition
