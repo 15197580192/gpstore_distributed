@@ -55,7 +55,7 @@ Examples:
 # forum分片
 $ sh BuildScript/specialSlice.sh
 # message分片，输入分片id参数
-$ sh BuildScript/buildDistributeDB.sh id
+$ sh BuildScript/buildDistributeDB.sh partNo
 ```
 ### 脚本配置
 ```
