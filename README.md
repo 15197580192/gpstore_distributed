@@ -2,11 +2,11 @@
 
 ## 代码目录
 ```
+ldbcPartition.cpp 划分代码
 BuildScript/  建库脚本
   -buildDistributeDB.sh message分片建库
   -specialSlice.sh  forum分片建库
 distribute_header/ 分布式建库特殊header
-ldbcPartition.cpp 划分代码
 *route/  生成路由表目录
 *output/ 划分数据生成目录
   -forum/  forum分片数据路径
