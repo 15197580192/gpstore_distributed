@@ -1,4 +1,4 @@
-# gpstore_distributed
+# ldbc_partition
 
 ## 代码目录
 ```
