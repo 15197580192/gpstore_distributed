@@ -4,8 +4,8 @@
 
 # ldbc原始数据
 ldbcPath="/home/huzheyuan/ldbc_partition/input/social_network-csv_composite-longdateformatter-sf0.1"
-HeaderPath="$ldbcPath/headers"
 dynamicData="$ldbcPath/dynamic"
+staticData="$ldbcPath/static"
 dynamicHeader="$ldbcPath/header/dynamic"
 staticHeader="$ldbcPath/header/static"
 # 分布式特殊header
