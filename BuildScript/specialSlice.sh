@@ -4,8 +4,8 @@
 ldbcPath="/home/huzheyuan/ldbc_partition/input/social_network-csv_composite-longdateformatter-sf0.1"
 dynamicData="$ldbcPath/dynamic"
 staticData="$ldbcPath/static"
-dynamicHeader="$ldbcPath/header/dynamic"
-staticHeader="$ldbcPath/header/static"
+dynamicHeader="$ldbcPath/headers/dynamic"
+staticHeader="$ldbcPath/headers/static"
 # gpstore bin目录
 binPath="/home/huzheyuan/latest-build/gpstore/bin"
 # 分布式特殊header
